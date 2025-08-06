@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Unica+One&family=Vollkorn:wght@400;700&display=swap');
+@import "tailwindcss";
+
+/* Override background/foreground directly */
+:root {
+  --background: #313539;
+  --foreground: #ededed;
+  --font-unica: 'Unica One', sans-serif;
+  --font-vollkorn: 'Vollkorn', serif;
+}
+
+/* Optional: keep fonts from inline theme if used elsewhere */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-unica);
+  --font-serif: var(--font-vollkorn);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Set global styles */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-unica), var(--font-vollkorn), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
