@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
@@ -14,7 +15,9 @@ export default function Navbar() {
       <div className="flex h-16 items-center justify-between px-4 w-full">
         {/* Left: Logo */}
         <Link href="/" className="flex items-center text-2xl font-bold tracking-tight hover:text-yellow-400 transition">
-          <img src="/logo.svg" alt="Logo" className="h-12 w-12 mr-2" />
+          <span className="h-12 w-12 mr-2 relative">
+            <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
+          </span>
           Börsensaufen 🍻
         </Link>
 

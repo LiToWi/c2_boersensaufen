@@ -1,0 +1,20 @@
+2025-08-06T03:48:35: [next-auth][error][NO_SECRET] 
+2025-08-06T03:48:35: https://next-auth.js.org/errors#no_secret Please define a `secret` in production. Error [MissingSecretError]: Please define a `secret` in production.
+2025-08-06T03:48:35:     at b.assertConfig (.next/server/app/api/auth/[...nextauth]/route.js:25:64660)
+2025-08-06T03:48:35:     at q (.next/server/app/api/auth/[...nextauth]/route.js:25:56921)
+2025-08-06T03:48:35:     at async g (.next/server/app/api/auth/[...nextauth]/route.js:17:22308)
+2025-08-06T03:48:35:     at async a.length.b (.next/server/app/api/auth/[...nextauth]/route.js:17:23749)
+2025-08-06T03:48:35:     at async k (.next/server/app/api/auth/[...nextauth]/route.js:25:42924)
+2025-08-06T03:48:35:     at async g (.next/server/app/api/auth/[...nextauth]/route.js:25:43927) {
+2025-08-06T03:48:35:   code: 'NO_SECRET'
+2025-08-06T03:48:35: }
+2025-08-06T03:48:35: [next-auth][error][NO_SECRET] 
+2025-08-06T03:48:35: https://next-auth.js.org/errors#no_secret Please define a `secret` in production. Error [MissingSecretError]: Please define a `secret` in production.
+2025-08-06T03:48:35:     at b.assertConfig (.next/server/app/api/auth/[...nextauth]/route.js:25:64660)
+2025-08-06T03:48:35:     at q (.next/server/app/api/auth/[...nextauth]/route.js:25:56921)
+2025-08-06T03:48:35:     at async g (.next/server/app/api/auth/[...nextauth]/route.js:17:22308)
+2025-08-06T03:48:35:     at async a.length.b (.next/server/app/api/auth/[...nextauth]/route.js:17:23749)
+2025-08-06T03:48:35:     at async k (.next/server/app/api/auth/[...nextauth]/route.js:25:42924)
+2025-08-06T03:48:35:     at async g (.next/server/app/api/auth/[...nextauth]/route.js:25:43927) {
+2025-08-06T03:48:35:   code: 'NO_SECRET'
+2025-08-06T03:48:35: }

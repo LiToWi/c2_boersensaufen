@@ -68,7 +68,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${unica.variable} ${vollkorn.variable}antialiased flex flex-col`}>
         <Providers>
           <Navbar />
 
