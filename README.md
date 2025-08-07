@@ -6,6 +6,7 @@ First, run the development server:
 
 ```bash
 npm run dev
+npx convex dev
 ```
 
 Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
@@ -14,7 +15,6 @@ Open [http://localhost:3001](http://localhost:3001) with your browser to see the
 This project uses:
 - ReactJS
 - NextJS + Next-Auth
-- Tailwind CSS
+- Tailwind CSS & Shadcn UI
 - Typescript
-- PostgreSQL + Prism
-- Socket.IO
+- Convex

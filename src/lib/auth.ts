@@ -1,6 +1,10 @@
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { prisma } from '@/lib/prisma'
+import { api } from '../../convex/_generated/api'
+import { ConvexHttpClient } from 'convex/browser'
 import type { AuthOptions } from 'next-auth'
+
+// Create Convex client
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -13,20 +17,29 @@ export const authOptions: AuthOptions = {
       async authorize(credentials) {
         if (!credentials?.name || !credentials?.password) return null
 
-        const table = await prisma.table.findUnique({
-          where: { name: credentials.name },
-        })
+        try {
+          // Use Convex to fetch the table by name
+          const table = await convex.query(api.tables.getTableByName, {
+            name: credentials.name,
+          })
 
-        if (!table) return null
+          if (!table) return null
 
-        const isValid = credentials.password === table.password
-        if (!isValid) return null
+          // Validate password using the mutation
+          await convex.mutation(api.tables.validateTablePassword, {
+            tableId: table._id,
+            password: credentials.password,
+          })
 
-        return {
-          id: String(table.id),
-          name: table.name,
-          email: null,
-          image: null,
+          return {
+            id: String(table._id),
+            name: table.name,
+            email: null,
+            image: null,
+          }
+        } catch (e) {
+          console.error('Auth error:', e)
+          return null
         }
       },
     }),
