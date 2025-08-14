@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useParty } from "../contexts/PartyContext";
 
 export default function HomePage() {
-  const { currentTable, currentParty, partyName, setCurrentParty, clearCurrentParty } = useParty();
+  const { currentTable, currentParty, partyName} = useParty();
 
   useEffect(() => {
     console.log("Current Party Info:", {

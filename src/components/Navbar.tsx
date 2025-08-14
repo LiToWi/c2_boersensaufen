@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
-import { useParty } from '../contexts/PartyContext'
+import LoadingAnimation from './LoadingAnimation';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -49,7 +49,9 @@ export default function Navbar() {
 
           {/* Login/Logout Button */}
           {status === 'loading' ? (
-            <div className="hidden md:block text-sm">Loading...</div>
+            <div className="hidden md:block text-sm">
+              <LoadingAnimation />
+            </div>
           ) : session ? (
             <div className="hidden md:flex items-center space-x-4">
               <button

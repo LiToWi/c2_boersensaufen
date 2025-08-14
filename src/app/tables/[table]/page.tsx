@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParty } from "@/contexts/PartyContext"; // Add this import
+import LoadingAnimation from "@/components/LoadingAnimation";
 
 export default function TablePage() {
   const { data: session, status } = useSession()
@@ -34,6 +35,8 @@ export default function TablePage() {
 
   const table = useQuery(api.tables.getTableByName, tableName ? { name: tableName } : "skip");
   const parties = useQuery(api.parties.getOpenPartiesByName, tableName ? { name: tableName } : "skip");
+
+  const loading = !table || !parties;
 
   // Mutations for creating and closing parties
   const createParty = useMutation(api.parties.createParty);
@@ -60,6 +63,7 @@ export default function TablePage() {
 
   async function handleCloseParty(partyId: string) {
     try {
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       await closeParty({ partyId: partyId as any });
       
       // If the current party is being closed, clear it
@@ -72,19 +76,17 @@ export default function TablePage() {
   }
 
   // Add join party function
+  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
   function handleJoinParty(party: any) {
     if (tableName) {
       setCurrentParty(tableName, party._id, party.name);
     }
   }
-
-  // Add leave party function
-  function handleLeaveParty() {
-    clearCurrentParty();
-  }
+  
+  if (loading) return <LoadingAnimation />;
 
   if (status === 'loading') return <TableSkeleton />
-  if (!session) return <div>Redirecting...</div>
+  if (!session) return <div><LoadingAnimation /></div>
 
   if (!tableName) {
     return (
@@ -182,6 +184,7 @@ export default function TablePage() {
               </div>
             ) : (
               <div className="space-y-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {parties.map((party: any, index: number) => (
                   <div key={party._id}>
                     <div className="flex items-center justify-between p-3 rounded-lg border border-gray-400">

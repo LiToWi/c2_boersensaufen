@@ -1,5 +1,6 @@
 'use client'
 
+import LoadingAnimation from '@/components/LoadingAnimation'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -18,19 +19,10 @@ export default function DashboardLayout({
     }, [session, status, router])
 
     // Show loading while checking session
-    if (status === 'loading') {
+    if (status === 'loading' || !session) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div>Loading...</div>
-            </div>
-        )
-    }
-
-    // Show redirecting message while redirecting
-    if (!session) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div>Redirecting to login...</div>
+                <LoadingAnimation />
             </div>
         )
     }
