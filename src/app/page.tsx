@@ -1,27 +1,22 @@
-'use client'
+"use client"
 
-import { useEffect } from "react";
-import { useParty } from "../contexts/PartyContext";
+import React, { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import HomeClient from './HomeClient'
 
-export default function HomePage() {
-  const { currentTable, currentParty, partyName} = useParty();
+export default function Page() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
   useEffect(() => {
-    console.log("Current Party Info:", {
-      currentTable,
-      currentParty,
-      partyName
-    });
-  }, [currentTable, currentParty, partyName]);
+    if (status !== 'loading' && session) {
+      router.push('/dashboard/user')
+    }
+  }, [status, session, router])
 
-  return (
-    <main className="flex items-center justify-center p-4">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold font-unica">Servus,</h1>
-        <p className="mt-4 font-vollkorn">
-          scan your table QR code to join the bar stock exchange!!!
-        </p>
-      </div>
-    </main>
-  );
+  // While checking session/loading, render nothing to avoid flicker; HomeClient will render if not logged in.
+  if (status === 'loading') return null
+
+  return <HomeClient />
 }

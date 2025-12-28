@@ -4,12 +4,15 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
+import LanguageDropdown from './LanguageDropdown'
+import { useLanguage } from '@/contexts/LanguageContext'
 import { useSession, signOut } from 'next-auth/react'
 import LoadingAnimation from './LoadingAnimation';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const { data: session, status } = useSession()
+  const { t } = useLanguage()
 
   // Function to close mobile menu
   const closeMobileMenu = () => {
@@ -26,24 +29,26 @@ export default function Navbar() {
     <nav className="w-full bg-gray-900 text-white shadow-md sticky top-0 z-50">
       <div className="flex h-16 items-center justify-between px-4 w-full">
         {/* Left: Logo */}
-        <Link href="/" className="flex items-center text-2xl font-bold tracking-tight hover:text-blue-600 transition">
+  <Link href="/" className="flex items-center text-2xl md:text-4xl font-bold tracking-tight hover:text-blue-600 transition">
           <span className="h-12 w-12 mr-2 relative">
             <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
           </span>
-          Börsensaufen 🍻
+          {t('app_title')}
         </Link>
 
         {/* Center + Right group */}
         <div className="flex items-center space-x-8 ml-auto">
           {/* Nav Links */}
-          <div className="hidden md:flex space-x-8 text-md font-medium">
-            <Link href="/" className="hover:text-blue-600 transition">Home</Link>
-            <Link href="/drinks" className="hover:text-blue-600 transition">Drinks</Link>
+          <div className="hidden md:flex space-x-8 text-xl font-medium">
+            {!session && (
+              <Link href="/" className="hover:text-blue-600 transition">{t('nav_home')}</Link>
+            )}
+            <Link href="/drinks" className="hover:text-blue-600 transition">{t('nav_drinks')}</Link>
             {session && (
-              <Link href="/dashboard/user" className="hover:text-blue-600 transition">Dashboard</Link>
+              <Link href="/dashboard/user" className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
             )}
             {session && (
-                <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">My Party</Link>
+                <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
             )}
           </div>
 
@@ -54,20 +59,28 @@ export default function Navbar() {
             </div>
           ) : session ? (
             <div className="hidden md:flex items-center space-x-4">
-              <button
-                onClick={() => signOut()}
-                className="bg-red-500 hover:bg-red-400 text-white px-4 py-1.5 rounded-md font-semibold transition"
-              >
-                LOGOUT ({session.user?.name})
-              </button>
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="hidden md:block">
+                  <LanguageDropdown />
+                </div>
+                <button
+                  onClick={() => signOut()}
+                  className="bg-red-500 hover:bg-red-400 text-white px-4 py-2 rounded-md font-semibold transition text-xl"
+                >
+                  {t('logout')} ({session.user?.name})
+                </button>
+              </div>
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="hidden md:inline-block bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md font-semibold transition"
-            >
-              LOGIN
-            </Link>
+            <div className="hidden md:flex items-center space-x-4">
+              <LanguageDropdown />
+              <Link
+                href="/login"
+                className="hidden md:inline-block bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold transition text-xl"
+              >
+                {t('login')}
+              </Link>
+            </div>
           )}
 
           {/* Mobile toggle button */}
@@ -84,36 +97,42 @@ export default function Navbar() {
       {/* Mobile menu */}
       {isOpen && (
         <div className="md:hidden px-4 pb-4 space-y-2">
-          <Link 
-            href="/" 
-            className="block hover:text-blue-600 transition"
-            onClick={closeMobileMenu}
-          >
-            Home
-          </Link>
+          <div className="block">
+            <LanguageDropdown />
+          </div>
+
+          {!session && (
+            <Link 
+              href="/" 
+              className="block hover:text-blue-600 transition text-lg"
+              onClick={closeMobileMenu}
+            >
+              {t('nav_home')}
+            </Link>
+          )}
           <Link 
             href="/drinks" 
-            className="block hover:text-blue-600 transition"
+            className="block hover:text-blue-600 transition text-lg"
             onClick={closeMobileMenu}
           >
-            Drinks
+            {t('nav_drinks')}
           </Link>
           {session && (
             <Link 
               href="/dashboard/user" 
-              className="block hover:text-blue-600 transition"
+              className="block hover:text-blue-600 transition text-lg"
               onClick={closeMobileMenu}
             >
-              Dashboard
+              {t('nav_dashboard')}
             </Link>
           )}
           {session && (
             <Link 
               href={`/tables/${session.user?.name}`} 
-              className="hover:text-blue-600 transition"
+              className="block hover:text-blue-600 transition text-lg"
               onClick={closeMobileMenu}
             >
-              My Party
+              {t('nav_my_party')}
             </Link>
           )}
           {session ? (
@@ -121,7 +140,7 @@ export default function Navbar() {
               onClick={handleLogout}
               className="block w-full text-left bg-red-500 hover:bg-red-400 text-white px-4 py-2 rounded-md font-semibold transition"
             >
-              LOGOUT ({session.user?.name})
+              {t('logout')} ({session.user?.name})
             </button>
           ) : (
             <Link 
@@ -129,7 +148,7 @@ export default function Navbar() {
               className="block bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold transition"
               onClick={closeMobileMenu}
             >
-              LOGIN
+              {t('login')}
             </Link>
           )}
         </div>

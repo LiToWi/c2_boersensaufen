@@ -1,0 +1,9 @@
+{
+  "name": "c2/ready2order-service",
+  "description": "Tiny proxy service for Ready2Order API used by c2_boersensaufen",
+  "require": {
+    "ready2order/r2o-api-client-php": "*"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

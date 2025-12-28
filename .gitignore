@@ -47,3 +47,6 @@ next-env.d.ts
 
 PM2 Ecosystem
 ecosystem.config.js
+
+# PHP dependencies (Composer)
+/ready2order-service/vendor/

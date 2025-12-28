@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "2007:3000" # Next dev default
+    environment:
+      - NODE_ENV=development
+      # Point the app container to the PHP microservice by docker-compose service name
+      - READY2ORDER_PHP_URL=http://php-ready2order:8090/products
+    volumes:
+      - ./:/app:cached
+      - /app/node_modules
+    working_dir: /app
+    # Dev-only: run Next dev server. Convex is expected to run externally.
+    command: bash -lc "npm install --no-audit --no-fund --silent && npm run dev"
+    tty: true
+    stdin_open: true
+  php-ready2order:
+    image: composer:2
+    working_dir: /srv
+    volumes:
+      - ./ready2order-service:/srv
+    environment:
+      READY2ORDER_ACCOUNT_TOKEN: ${READY2ORDER_ACCOUNT_TOKEN}
+    # Use Composer image so composer is available. Install deps then start PHP built-in server
+    command: bash -lc "composer install --no-interaction --no-ansi && php -S 0.0.0.0:8090 -t public public/router.php"
+    ports:
+      - "8090:8090"
