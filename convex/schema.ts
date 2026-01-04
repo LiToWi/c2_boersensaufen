@@ -5,7 +5,8 @@ export default defineSchema({
   tables: defineTable({
     name: v.string(),
     password: v.string(),
-    token: v.string(),
+    // optional token for auto-login; legacy rows may not have this set
+    token: v.optional(v.string()),
   }),
 
   parties: defineTable({
@@ -47,6 +48,7 @@ export default defineSchema({
     drinkId: v.id('drinks'),
     price: v.number(),
     ts: v.number(), // Date.now() in ms
+    capacity: v.optional(v.number()), // available capacity at this time
     source: v.optional(v.string()),
     reason: v.optional(v.string()),
     meta: v.optional(v.any()),
@@ -59,15 +61,17 @@ export default defineSchema({
     name: v.string(),
     // current price shown in the app (e.g. 2.5 for €2.50)
     currentPrice: v.number(),
+    // optional remaining capacity for the product (used by pricing engine)
+    capacity: v.optional(v.number()),
     // optional historical / regular price
     regularPrice: v.optional(v.number()),
     // optional low bound price
     lowBoundPrice: v.optional(v.number()),
-  // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
-  priority: v.optional(v.number()),
-  // number of ordered items (moved from a separate orderItems table).
-  // Treated as 0 when absent.
-  orderItems: v.optional(v.number()),
+    // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
+    priority: v.optional(v.number()),
+    // number of ordered items (moved from a separate orderItems table).
+    // Treated as 0 when absent.
+    orderItems: v.optional(v.number()),
     // reference to categories table (optional)
     categoryId: v.optional(v.id('categories')),
     // whether the product is active/available
