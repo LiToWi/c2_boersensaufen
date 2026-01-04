@@ -90,7 +90,7 @@ export default function Navbar() {
             )}
             <Link href="/drinks" className="hover:text-blue-600 transition">{t('nav_drinks')}</Link>
             {session && (
-              <Link href={session.user?.name === 'admin' ? '/dashboard/admin' : '/dashboard/user'} className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
+              <Link href={session.user?.name === 'admin' ? '/dashboard/admin/parties' : '/dashboard/user'} className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
             )}
             {session && (
                 <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
