@@ -55,6 +55,15 @@ export const getTableByName = query({
     },
 });
 
+export const getTableByID = query({
+  args: { tableID: v.id('tables') },
+  handler: async(ctx, args) => {
+    return await ctx.db.query('tables')
+      .filter(q => q.eq(q.field('_id'), args.tableID))
+      .unique();
+  }
+})
+
 // Keep this as a mutation since it modifies/validates data
 export const validateTablePassword = mutation({
     args: {
