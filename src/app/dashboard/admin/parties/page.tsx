@@ -1,3 +1,4 @@
+import { partyList } from "@/app/api/admin/parties"
 import {
   Table,
   TableBody,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/table"
 
 export default function Parties() {
+
+    partyList();
 
     return (
         <div>
