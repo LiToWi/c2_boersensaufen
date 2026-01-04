@@ -51,7 +51,7 @@ export const getTableByName = query({
     handler: async (ctx, args) => {
         return await ctx.db.query('tables')
             .filter(q => q.eq(q.field('name'), args.name))
-            .unique();
+            .first();
     },
 });
 
@@ -75,5 +75,26 @@ export const validateTablePassword = mutation({
         }
 
         return true;
+    },
+});
+
+// Cleanup mutation: remove duplicate tables, keep only one per name
+export const cleanupDuplicateTables = mutation({
+    handler: async (ctx, _) => {
+        const allTables = await ctx.db.query('tables').collect();
+        const seen = new Set<string>();
+        let removed = 0;
+
+        for (const table of allTables) {
+            if (seen.has(table.name)) {
+                // Duplicate; remove it
+                await ctx.db.delete(table._id);
+                removed++;
+            } else {
+                seen.add(table.name);
+            }
+        }
+
+        return { removed, remaining: seen.size };
     },
 });

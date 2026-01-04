@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Geist, Geist_Mono, Unica_One, Vollkorn } from "next/font/google";
 import "./globals.css";
 import Navbar from '@/components/Navbar'
@@ -26,6 +27,12 @@ const vollkorn = Vollkorn({
   weight: ["400", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#111827",
+};
+
 export const metadata: Metadata = {
   title: "C2 - Boersensaufen 📈🍺",
   description: "Saufen, Börse, C2",
@@ -34,12 +41,9 @@ export const metadata: Metadata = {
   generator: "Next.js",
   keywords: ["Saufen", "Börse", "C2", "Boersensaufen", "Party", "Event"],
   referrer: "origin-when-cross-origin",
-  themeColor: "#111827",
-  colorScheme: "dark",
   creator: "Studentische Initiative Campusleben Garching e.V.",
   publisher: "Studentische Initiative Campusleben Garching e.V.",
   robots: "index, follow",
-  viewport: "width=device-width, initial-scale=1.0",
   manifest: "/site.webmanifest",
   icons: [
     { rel: "icon", url: "/favicon.ico" },

@@ -73,7 +73,8 @@ export default function TablePage() {
   const validatePartyPassword = useMutation(api.parties.validatePartyPassword);
   const closeParty = useMutation(api.parties.closeParty);
 
-  async function handleCreateParty() {
+  async function handleCreateParty(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (!partyName.trim() || !table?._id) return;
     
     setIsCreating(true);
@@ -249,7 +250,7 @@ export default function TablePage() {
           </CardHeader>
           <CardContent>
             {/* Create Party Form */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleCreateParty} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Party name */}
               <div className="w-full">
                 <Label htmlFor="partyName">Party Name</Label>
@@ -274,15 +275,14 @@ export default function TablePage() {
                   className="w-full"
                 />
               </div>
-            </div>
-            {/* Submit / Create party */}
-            <div className="mt-4 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={handleCreateParty}>
-                {t('create_party') || 'Create party'}
-              </button>
-            </div>
+
+              {/* Submit / Create party */}
+              <div className="mt-4 flex items-center justify-end sm:col-span-2">
+                <Button type="submit">
+                  {t('create_party') || 'Create party'}
+                </Button>
+              </div>
+            </form>
             <h3 className="text-lg font-semibold mb-4">{t('active_parties')}</h3>
             {!parties || parties.length === 0 ? (
               <div className="text-center py-8">

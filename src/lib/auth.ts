@@ -3,8 +3,8 @@ import { api } from "../../convex/_generated/api";
 import { ConvexHttpClient } from "convex/browser";
 import type { AuthOptions } from "next-auth";
 
-// Create Convex client
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Server-side Convex client: Docker service name for auth (inside container)
+const serverConvex = new ConvexHttpClient("http://backend:3210");
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -20,14 +20,14 @@ export const authOptions: AuthOptions = {
 
         try {
           // Use Convex to fetch the table by name
-          const table = await convex.query(api.tables.getTableByName, {
+          const table = await serverConvex.query(api.tables.getTableByName, {
             name: credentials.name,
           });
 
           if (!table) return null;
 
           // Validate password using the mutation
-          await convex.mutation(api.tables.validateTablePassword, {
+          await serverConvex.mutation(api.tables.validateTablePassword, {
             tableId: table._id,
             password: credentials.password,
           });
@@ -56,7 +56,7 @@ export const authOptions: AuthOptions = {
 
         try {
           // Use Convex to fetch the table by name
-          const table = await convex.query(api.tables.getTableByToken, {
+          const table = await serverConvex.query(api.tables.getTableByToken, {
             token: credentials.token,
           });
 

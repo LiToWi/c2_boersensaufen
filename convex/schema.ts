@@ -40,6 +40,7 @@ export default defineSchema({
     quantity: v.number(),
     priceAtOrder: v.number(), // price when ordered
     regularPriceAtOrder: v.optional(v.number()), // original/regular price for savings calculation
+    feePaid: v.number(), // 1% trading fee on order value
     createdAt: v.number(),
     finalized: v.optional(v.boolean()), // whether order was finalized/submitted
     finalizedAt: v.optional(v.number()), // when it was finalized
@@ -66,13 +67,10 @@ export default defineSchema({
     regularPrice: v.optional(v.number()),
     // optional low bound price
     lowBoundPrice: v.optional(v.number()),
-    // optional capacity/stock for supply-demand modeling
-    capacity: v.optional(v.number()),
-  // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
-  priority: v.optional(v.number()),
-  // number of ordered items (moved from a separate orderItems table).
-  // Treated as 0 when absent.
-  orderItems: v.optional(v.number()),
+    // capacity/stock for supply-demand modeling (required; backfilled to 50 for legacy docs)
+    capacity: v.number(),
+    // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
+    priority: v.optional(v.number()),
     // reference to categories table (optional)
     categoryId: v.optional(v.id('categories')),
     // whether the product is active/available

@@ -9,6 +9,7 @@ import { api, internal as internalApi } from '../_generated/api';
 // (defaults to http://127.0.0.1:8090/products?includeProductGroup=true).
 
 const DEFAULT_URL = 'http://127.0.0.1:8090/products?includeProductGroup=true';
+const DEFAULT_CAPACITY = 50;
 
 function normalizeGroupName(raw: any) {
   const name = (raw ?? '').toString().trim();
@@ -194,7 +195,7 @@ export const syncReady2Order = action({
       // find existing drink by r2oId
 
       const regularPrice = Number(currentPrice);
-      const lowBoundPrice = Math.round(currentPrice * 0.35 * 100) / 100;
+      const lowBoundPrice = Math.round(currentPrice * 0.4 * 100) / 100;
       const priority = getPriority(p);
 
       const doc = {
@@ -204,6 +205,7 @@ export const syncReady2Order = action({
         regularPrice,
         lowBoundPrice,
         priority,
+        capacity: DEFAULT_CAPACITY,
         categoryId,
         active: !(typeof p.product_active !== 'undefined' && (p.product_active === false || p.product_active === 0 || String(p.product_active).toLowerCase() === 'false' || String(p.product_active) === '0')),
       };

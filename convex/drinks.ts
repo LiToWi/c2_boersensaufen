@@ -1,13 +1,13 @@
 import { query, mutation } from './_generated/server';
-import { api } from './_generated/api';
+import { v } from "convex/values";
+
+const DEFAULT_CAPACITY = 50;
 
 export const listDrinks = query({
   handler: async (ctx) => {
     return await ctx.db.query('drinks').collect();
   },
 });
-
-import { v } from "convex/values";
 
 /**
  * Order a drink - creates order item and records for pricing engine
@@ -29,6 +29,12 @@ export const orderDrink = mutation({
       throw new Error('Drink not found');
     }
     
+    // Capacity check and reserve stock
+    const availableCapacity = typeof drink.capacity === 'number' ? drink.capacity : DEFAULT_CAPACITY;
+    if (availableCapacity < quantity) {
+      throw new Error(`Out of stock. Only ${availableCapacity} left for ${drink.name}.`);
+    }
+
     // Check purchase limit: 3x party member count
     // Count active party members
     const allMembers = await ctx.db.query("partyMembers").collect();
@@ -51,11 +57,18 @@ export const orderDrink = mutation({
       throw new Error(`Purchase limit exceeded!\n Your party (${memberCount} members) can have max ${purchaseLimit} pending items in basket.\n Currently you have: ${currentPendingTotal}`);
     }
     
+    // Reserve capacity immediately so stock cannot be oversold
+    await ctx.db.patch(drink._id, { capacity: availableCapacity - quantity });
+
     // Create order record
     const orderId = await ctx.db.insert('orders', {
       partyId: args.partyId,
       createdAt: Date.now(),
     });
+    
+    // Calculate 1% trading fee on order value
+    const orderValue = quantity * drink.currentPrice;
+    const feePaid = orderValue * 0.01; // 1% fee
     
     // Create order item
     await ctx.db.insert('orderItems', {
@@ -66,6 +79,7 @@ export const orderDrink = mutation({
       quantity,
       priceAtOrder: drink.currentPrice,
       regularPriceAtOrder: drink.regularPrice,
+      feePaid,
       createdAt: Date.now(),
     });
     
@@ -80,7 +94,7 @@ export const orderDrink = mutation({
  * Get all order items for a party
  */
 export const getPartyOrders = query({
-  args: { partyId: v.union(v.id('parties'), v.literal('')) },
+  args: { partyId: v.optional(v.union(v.id('parties'), v.string())) },
   handler: async (ctx, args) => {
     if (!args.partyId) return [];
 
@@ -98,7 +112,7 @@ export const getPartyOrders = query({
  * Only counts non-finalized (pending) orders
  */
 export const getPartyOrderSummary = query({
-  args: { partyId: v.union(v.id('parties'), v.literal('')) },
+  args: { partyId: v.optional(v.union(v.id('parties'), v.string())) },
   handler: async (ctx, args) => {
     if (!args.partyId) return { totalItems: 0, totalPrice: 0, itemCount: 0 };
 
@@ -123,6 +137,14 @@ export const getPartyOrderSummary = query({
 export const deleteOrderItem = mutation({
   args: { orderItemId: v.id('orderItems') },
   handler: async (ctx, args) => {
+    const orderItem = await ctx.db.get(args.orderItemId);
+    if (orderItem && !orderItem.finalized) {
+      // restore capacity for pending items that are removed/expired
+      const drink = await ctx.db.get(orderItem.drinkId);
+      const currentCapacity = typeof drink?.capacity === 'number' ? drink.capacity : DEFAULT_CAPACITY;
+      await ctx.db.patch(orderItem.drinkId, { capacity: currentCapacity + orderItem.quantity });
+    }
+
     await ctx.db.delete(args.orderItemId);
     return { success: true };
   },

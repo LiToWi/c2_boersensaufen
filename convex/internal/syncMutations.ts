@@ -1,6 +1,8 @@
 import { internalMutation } from '../_generated/server';
 import { v } from 'convex/values';
 
+const DEFAULT_CAPACITY = 50;
+
 function normalizeGroupName(raw: any) {
   const name = (raw ?? '').toString().trim();
   if (!name) return 'Ungrouped';
@@ -55,12 +57,27 @@ export const upsertDrink = internalMutation({
       .filter((q) => q.eq(q.field('r2oId'), doc.r2oId))
       .unique();
 
+    const capacity = typeof doc.capacity === 'number'
+      ? doc.capacity
+      : (existing?.capacity ?? DEFAULT_CAPACITY);
+
+    const docWithCapacity = { ...doc, capacity };
+
     if (existing) {
-      await ctx.db.patch(existing._id, doc);
+      await ctx.db.patch(existing._id, docWithCapacity);
       return existing._id;
     } else {
-      const id = await ctx.db.insert('drinks', doc);
+      const id = await ctx.db.insert('drinks', docWithCapacity);
       return id;
     }
+  },
+});
+
+// Internal helper to set capacity on an existing drink
+export const setDrinkCapacity = internalMutation({
+  args: { drinkId: v.id('drinks'), capacity: v.number() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.drinkId, { capacity: args.capacity });
+    return { drinkId: args.drinkId, capacity: args.capacity };
   },
 });
