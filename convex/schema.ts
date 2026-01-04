@@ -5,6 +5,7 @@ export default defineSchema({
   tables: defineTable({
     name: v.string(),
     password: v.string(),
+    token: v.string(),
   }),
 
   parties: defineTable({
