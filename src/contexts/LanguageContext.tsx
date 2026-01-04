@@ -132,7 +132,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     cat_wine: 'Wine',
     cat_mocktails: 'Mocktails (alcohol free)',
     cat_cocktails: 'Cocktails',
-    home_title: 'Hello,',
+    home_title: 'Servus,',
     home_subtitle: 'Scan your table QR code to join the bar stock exchange!',
     nav_home: 'Home',
     create_party: 'Create party',
