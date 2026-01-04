@@ -20,7 +20,7 @@ export default function HomeClient() {
     <main className="flex items-center justify-center p-4">
       <div className="text-center">
         <h1 className="text-4xl font-bold font-unica">{t('home_title')}</h1>
-        <p className="mt-4 font-vollkorn">{t('home_subtitle')}</p>
+        <p className="mt-4 font-quantico">{t('home_subtitle')}</p>
       </div>
     </main>
   )

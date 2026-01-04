@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Unica_One, Vollkorn } from "next/font/google";
+import { Geist, Geist_Mono, Manufacturing_Consent, Quantico, Unica_One } from "next/font/google";
 import "./globals.css";
 import Navbar from '@/components/Navbar'
 import Providers from '@/components/Providers';
@@ -20,11 +20,17 @@ const unica = Unica_One({
   weight: "400"
 });
 
-const vollkorn = Vollkorn({
-  variable: "--font-vollkorn",
+const quantico = Quantico({
+  variable: "--font-quantico",
   subsets: ["latin"],
-  weight: ["400", "700"],
-});
+  weight: ["400", "700"]
+})
+
+const manufacturing = Manufacturing_Consent({
+  variable: "--font-manufacturing",
+  subsets: ["latin"],
+  weight: ["400"]
+})
 
 export const metadata: Metadata = {
   title: "C2 - Boersensaufen 📈🍺",
@@ -68,7 +74,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${unica.variable} ${vollkorn.variable}antialiased flex flex-col`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${unica.variable} ${quantico.variable} ${manufacturing.variable} antialiased flex flex-col`}>
         <Providers>
           <Navbar />
 
