@@ -8,8 +8,10 @@ import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useParty } from '@/contexts/PartyContext'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
 import type { Id } from '../../convex/_generated/dataModel'
 
 type Snapshot = { ts: number; price: number }
@@ -26,8 +28,10 @@ type Props = {
 export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, snapshots, showOrderButton = false }: Props) {
   const { t } = useLanguage()
   const { currentParty, currentTable } = useParty()
+  const { data: session } = useSession()
   const orderDrink = useMutation(api.drinks.orderDrink)
   const [isOrdering, setIsOrdering] = React.useState(false)
+  const [quantity, setQuantity] = React.useState(1)
 
   const displayCurrent = typeof currentPrice === 'number' ? currentPrice : undefined
   const displayRegular = typeof regularPrice === 'number' ? regularPrice : undefined
@@ -40,18 +44,61 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
       return
     }
 
+    if (quantity < 1) {
+      toast.error(t('quantity_error') || 'Please select at least 1 item')
+      return
+    }
+
     setIsOrdering(true)
     try {
       await orderDrink({
         partyId: currentParty as Id<'parties'>,
         drinkId: id as Id<'drinks'>,
         userId: currentTable || 'unknown',
-        quantity: 1,
+        quantity: quantity,
       })
-      toast.success(t('order_added') || `${name} added to basket!`)
-    } catch (error) {
+      toast.success(t('order_added') || `${quantity}x ${name} added to basket!`)
+      setQuantity(1) // Reset quantity after successful order
+    } catch (error: any) {
       console.error('Order failed:', error)
-      toast.error(t('order_failed') || 'Failed to add to basket')
+      // Extract clean error message from Convex error
+      let errorMessage = t('order_failed') || 'Failed to add to basket'
+      
+      if (error?.message) {
+        // Check if it's a purchase limit error
+        if (error.message.includes('Purchase limit exceeded')) {
+          // Extract numbers from the error message
+          const membersMatch = error.message.match(/\((\d+) members?\)/)
+          const limitMatch = error.message.match(/max (\d+)/)
+          const currentMatch = error.message.match(/Currently you have: (\d+)/)
+          
+          if (membersMatch && limitMatch && currentMatch) {
+            const members = membersMatch[1]
+            const limit = limitMatch[1]
+            const current = currentMatch[1]
+            
+            const title = t('purchase_limit_exceeded') || 'Purchase limit exceeded'
+            const message = (t('purchase_limit_message') || 'Your party ({members} members) can have max {limit} pending items in basket. Currently: {current}')
+              .replace('{members}', members)
+              .replace('{limit}', limit)
+              .replace('{current}', current)
+            
+            errorMessage = `${title}!\n${message}`
+          } else {
+            // Fallback: try to extract the clean message
+            const match = error.message.match(/Uncaught Error: (.+?)(?:\n|$)/)
+            errorMessage = match?.[1]?.trim() || error.message
+          }
+        } else {
+          // Extract the actual error message, stripping Convex metadata
+          const match = error.message.match(/Uncaught Error: (.+?)(?:\n|$)/)
+          if (match && match[1]) {
+            errorMessage = match[1].trim()
+          }
+        }
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setIsOrdering(false)
     }
@@ -126,11 +173,24 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
 
             {showOrderButton && (
               <div className="mt-4">
+                <div className="mb-4 flex items-center gap-3">
+                  <label className="text-sm font-medium">{t('quantity') || 'Quantity'}:</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 h-10"
+                    disabled={!session || !currentParty || !currentTable}
+                  />
+                </div>
                 <Button 
                   onClick={handleOrder} 
-                  disabled={!currentParty || isOrdering}
+                  disabled={!session || !currentParty || !currentTable || isOrdering || quantity < 1}
                   className="w-full"
                   size="lg"
+                  title={!session || !currentParty || !currentTable ? (t('please_join_party') || 'Please join a party first') : undefined}
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
                   {isOrdering ? (t('adding') || 'Adding...') : (t('add_to_basket') || 'Add to Basket')}

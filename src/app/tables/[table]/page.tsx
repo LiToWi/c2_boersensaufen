@@ -34,7 +34,7 @@ export default function TablePage() {
   const leaveMember = useMutation(api.partyMembers.leaveMember);
   const getPartyOrderSummary = useQuery(
     api.drinks.getPartyOrderSummary,
-    currentParty ? { partyId: currentParty as any } : "skip"
+    currentParty && currentParty !== "" ? { partyId: currentParty as any } : "skip"
   );
 
   useEffect(() => {
@@ -159,13 +159,13 @@ export default function TablePage() {
   async function handleLeaveCurrentParty() {
     if (!currentParty) return;
     
-    // Check if there are pending orders
+    // Check if there are pending orders - block leaving if there are any
     if (getPartyOrderSummary && getPartyOrderSummary.itemCount > 0) {
-      const confirmed = window.confirm(
+      alert(
         t('cannot_leave_with_orders') || 
         'There are pending orders in this party. Please complete or clear all orders before leaving.'
       );
-      if (!confirmed) return;
+      return;
     }
     
     try {

@@ -16,11 +16,20 @@ export default function LoginPage() {
   const handleTokenLogin = async (token: string) => {
     const res = await signIn("credentials", {
       token,
-      callbackUrl: "/dashboard/user",
+      callbackUrl: "/",
       redirect: false,
     });
     if (!res?.ok) setError(t("invalid_login"));
-    else window.location.href = "/dashboard/user";
+    else {
+      // Get table name from session after login
+      const response = await fetch("/api/auth/session");
+      const session = await response.json();
+      if (session?.user?.name) {
+        window.location.href = `/tables/${session.user.name}`;
+      } else {
+        window.location.href = "/";
+      }
+    }
   };
 
   useEffect(() => {
@@ -35,12 +44,15 @@ export default function LoginPage() {
     const res = await signIn("credentials", {
       name,
       password,
-      callbackUrl: "/dashboard/user",
+      callbackUrl: "/",
       redirect: false,
     });
 
     if (!res?.ok) setError(t("invalid_login"));
-    else window.location.href = "/dashboard/user";
+    else {
+      // Redirect to table page after successful login
+      window.location.href = `/tables/${name}`;
+    }
   };
 
   return (
