@@ -194,7 +194,7 @@ export const syncReady2Order = action({
       // find existing drink by r2oId
 
       const regularPrice = Number(currentPrice);
-      const lowBoundPrice = Math.round(currentPrice * 0.3 * 100) / 100;
+      const lowBoundPrice = Math.round(currentPrice * 0.35 * 100) / 100;
       const priority = getPriority(p);
 
       const doc = {

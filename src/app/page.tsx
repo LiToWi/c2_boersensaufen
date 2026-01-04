@@ -11,7 +11,8 @@ export default function Page() {
 
   useEffect(() => {
     if (status !== 'loading' && session) {
-      router.push('/dashboard/user')
+      const dest = session.user?.name === 'admin' ? '/dashboard/admin' : '/dashboard/user'
+      router.push(dest)
     }
   }, [status, session, router])
 

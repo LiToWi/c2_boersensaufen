@@ -27,10 +27,33 @@ export default function TablePage() {
   // Add party context
   const { currentTable, currentParty, partyName: currentPartyName, setCurrentParty, clearCurrentParty } = useParty()
 
+  // member tracking
+  const [memberKey, setMemberKey] = useState<string | null>(null);
+  const createMember = useMutation(api.partyMembers.createMember);
+  const leaveMember = useMutation(api.partyMembers.leaveMember);
+
   useEffect(() => {
       if (status === 'loading') return
       if (!session) router.push('/login')
   }, [session, status, router])
+
+  // ensure we have a persistent member key for this browser
+  useEffect(() => {
+    try {
+      let mk = localStorage.getItem('partyMemberKey');
+      if (!mk) {
+        // prefer crypto.randomUUID if available
+        // fallback to timestamp+random
+        // eslint-disable-next-line no-undef
+        const generated = typeof crypto !== 'undefined' && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem('partyMemberKey', generated);
+        mk = generated;
+      }
+      setMemberKey(mk);
+    } catch (err) {
+      // ignore localStorage errors
+    }
+  }, []);
 
   const params = useParams();
   const tableName = params?.table as string | undefined;
@@ -54,6 +77,14 @@ export default function TablePage() {
       
       // Automatically join the newly created party
       if (tableName && newParty) {
+        // register member on server then set current party locally
+        try {
+          if (memberKey) {
+            await createMember({ partyId: newParty._id, memberKey });
+          }
+        } catch (err) {
+          console.error('createMember failed', err);
+        }
         setCurrentParty(tableName, newParty._id, newParty.name);
       }
     } catch (error) {
@@ -70,6 +101,11 @@ export default function TablePage() {
       
       // If the current party is being closed, clear it
       if (currentParty === partyId) {
+        try {
+          if (memberKey) await leaveMember({ partyId: partyId as any, memberKey });
+        } catch (err) {
+          console.error('leaveMember failed during closeParty', err);
+        }
         clearCurrentParty();
       }
     } catch (error) {
@@ -79,11 +115,35 @@ export default function TablePage() {
 
   // Add join party function
   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-  function handleJoinParty(party: any) {
+  async function handleJoinParty(party: any) {
     if (tableName) {
+      try {
+        if (memberKey) {
+          await createMember({ partyId: party._id, memberKey });
+        }
+      } catch (err) {
+        console.error('createMember failed', err);
+      }
       setCurrentParty(tableName, party._id, party.name);
     }
   }
+
+  // leave currently joined party (unregister on server then clear local state)
+  async function handleLeaveCurrentParty() {
+    if (!currentParty) return;
+    try {
+      if (memberKey) {
+        await leaveMember({ partyId: currentParty as any, memberKey });
+      }
+    } catch (err) {
+      console.error('leaveMember failed', err);
+    }
+    clearCurrentParty();
+  }
+
+  // member counts for displayed parties
+  const partyIdsArg = parties && parties.length ? { partyIds: parties.map((p: any) => p._id) } : "skip";
+  const memberCounts = useQuery(api.partyMembers.countMembersForParties, partyIdsArg as any);
   
   if (loading) return <LoadingAnimation />;
 
@@ -130,7 +190,7 @@ export default function TablePage() {
           {t('currently_joined')} <strong>{currentPartyName}</strong> {t('table_label')} <strong>{currentTable}</strong>
         </p>
         <button 
-          onClick={clearCurrentParty}
+          onClick={handleLeaveCurrentParty}
           className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mx-auto"
         >
           {t('leave_party')}
@@ -193,6 +253,10 @@ export default function TablePage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
                           {party.closed ? t('closed') : t('active')}
+                        </Badge>
+                        {/* member count (server-side) */}
+                        <Badge variant="outline">
+                          {memberCounts?.find((c: any) => c.partyId === party._id)?.count ?? 0}
                         </Badge>
                         
                         {/* Add join/joined status */}

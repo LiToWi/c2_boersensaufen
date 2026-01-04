@@ -15,6 +15,14 @@ export default defineSchema({
     closedAt: v.optional(v.number()), // store as Date.now() when closed
   }),
 
+  // track members that joined a party (one record per unique client/browser)
+  partyMembers: defineTable({
+    partyId: v.id('parties'),
+    memberKey: v.string(), // client-generated unique key stored in localStorage
+    joinedAt: v.number(),
+    leftAt: v.optional(v.number()),
+  }),
+
   orders: defineTable({
     partyId: v.id('parties'),
     createdAt: v.number(), // store as Date.now()

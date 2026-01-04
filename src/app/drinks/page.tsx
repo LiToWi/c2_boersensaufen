@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useParty } from '@/contexts/PartyContext'
 import { Star, ChevronDown } from 'lucide-react'
 import { ChartContainer } from '@/components/ui/chart'
 import dynamic from 'next/dynamic'
@@ -31,6 +32,7 @@ export default function DrinksList() {
   const drinks = useQuery(api.drinks.listDrinks);
   const categories = useQuery(api.categories.listCategories);
   const [selectedCategory] = useState<string | null>(null);
+  const { currentParty, currentTable } = useParty()
   const [favorites, setFavorites] = useState<Record<string, any>>({})
   const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number }>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
@@ -79,15 +81,29 @@ export default function DrinksList() {
     return g;
   }, [visibleDrinks, categoriesById, t]);
 
-  // load favorites from localStorage
+  // Party-scoped favorites: key per currentParty or currentTable
+  const favoritesKey = useMemo(() => {
+    const id = currentParty ?? currentTable
+    return id ? `favoriteDrinks:${id}` : null
+  }, [currentParty, currentTable])
+
+  // load favorites for the current party from localStorage
   useEffect(() => {
+    if (!favoritesKey) {
+      setFavorites({})
+      return
+    }
     try {
-      const raw = localStorage.getItem('favoriteDrinks')
+      const raw = localStorage.getItem(favoritesKey)
       if (raw) setFavorites(JSON.parse(raw))
-    } catch (e) {}
-  }, [])
+      else setFavorites({})
+    } catch (e) { setFavorites({}) }
+  }, [favoritesKey])
 
   const toggleFavorite = (id: string, item: Drink) => {
+    // Only allow toggling when a party/table is active
+    if (!favoritesKey) return
+
     const next = { ...favorites }
     if (next[id]) {
       delete next[id]
@@ -95,7 +111,7 @@ export default function DrinksList() {
       next[id] = { id, name: item.name, price: item.currentPrice, addedAt: Date.now() }
     }
     setFavorites(next)
-    try { localStorage.setItem('favoriteDrinks', JSON.stringify(next)) } catch(e){}
+    try { localStorage.setItem(favoritesKey, JSON.stringify(next)) } catch(e){}
   }
 
   const openDetail = (item: Drink) => {
@@ -190,7 +206,13 @@ export default function DrinksList() {
                         className="flex items-center justify-between bg-gray-900/40 hover:bg-gray-900/60 rounded-md p-4 md:p-5 transition-colors cursor-pointer border border-gray-700 min-w-0"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <button aria-label={'favorite-' + (d.name ?? '')} onClick={(e) => { e.stopPropagation(); toggleFavorite(id, d); }} className="p-1 rounded">
+                          <button
+                            aria-label={'favorite-' + (d.name ?? '')}
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(id, d); }}
+                            className={"p-1 rounded " + (!favoritesKey ? 'opacity-40 cursor-not-allowed' : '')}
+                            disabled={!favoritesKey}
+                            title={!favoritesKey ? (t('please_join_party') || 'Join a party to favorite items') : undefined}
+                          >
                             <Star className={starClass} fill={fav ? 'currentColor' : 'none'} />
                           </button>
                           <button onClick={() => openDetail(d)} className="text-left min-w-0 cursor-pointer">
@@ -217,7 +239,7 @@ export default function DrinksList() {
               onClick={closeDetail}
               aria-label={t('close') ?? 'Close'}
               title={t('close') ?? 'Close'}
-              className="text-gray-600 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-shadow"
+              className="absolute left-4 top-4 text-gray-600 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-shadow"
             >
               ×
             </button>

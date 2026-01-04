@@ -14,6 +14,7 @@ import type * as categories from "../categories.js";
 import type * as drinks from "../drinks.js";
 import type * as internal_syncMutations from "../internal/syncMutations.js";
 import type * as parties from "../parties.js";
+import type * as partyMembers from "../partyMembers.js";
 import type * as tables from "../tables.js";
 
 import type {
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   drinks: typeof drinks;
   "internal/syncMutations": typeof internal_syncMutations;
   parties: typeof parties;
+  partyMembers: typeof partyMembers;
   tables: typeof tables;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

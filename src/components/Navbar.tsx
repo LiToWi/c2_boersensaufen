@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import LanguageDropdown from './LanguageDropdown'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -19,10 +20,17 @@ export default function Navbar() {
     setIsOpen(false)
   }
 
-  // Handle logout and close menu
-  const handleLogout = () => {
+  const router = useRouter()
+
+  // Handle logout and close menu — use signOut without automatic redirect to avoid slow full-page signout
+  const handleLogout = async () => {
     closeMobileMenu()
-    signOut()
+    try {
+      await signOut({ redirect: false })
+    } finally {
+      // push to landing or login quickly on the client
+      router.push('/')
+    }
   }
 
   return (
@@ -45,7 +53,7 @@ export default function Navbar() {
             )}
             <Link href="/drinks" className="hover:text-blue-600 transition">{t('nav_drinks')}</Link>
             {session && (
-              <Link href="/dashboard/user" className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
+              <Link href={session.user?.name === 'admin' ? '/dashboard/admin' : '/dashboard/user'} className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
             )}
             {session && (
                 <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
@@ -64,10 +72,10 @@ export default function Navbar() {
                   <LanguageDropdown />
                 </div>
                 <button
-                  onClick={() => signOut()}
+                  onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-400 text-white px-4 py-2 rounded-md font-semibold transition text-xl"
                 >
-                  {t('logout')} ({session.user?.name})
+                  {t('check_out')} ({session.user?.name})
                 </button>
               </div>
             </div>
@@ -78,7 +86,7 @@ export default function Navbar() {
                 href="/login"
                 className="hidden md:inline-block bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold transition text-xl"
               >
-                {t('login')}
+                {t('check_in')}
               </Link>
             </div>
           )}
@@ -119,7 +127,7 @@ export default function Navbar() {
           </Link>
           {session && (
             <Link 
-              href="/dashboard/user" 
+              href={session.user?.name === 'admin' ? '/dashboard/admin' : '/dashboard/user'} 
               className="block hover:text-blue-600 transition text-lg"
               onClick={closeMobileMenu}
             >
@@ -140,7 +148,7 @@ export default function Navbar() {
               onClick={handleLogout}
               className="block w-full text-left bg-red-500 hover:bg-red-400 text-white px-4 py-2 rounded-md font-semibold transition"
             >
-              {t('logout')} ({session.user?.name})
+              {t('check_out')} ({session.user?.name})
             </button>
           ) : (
             <Link 
@@ -148,7 +156,7 @@ export default function Navbar() {
               className="block bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold transition"
               onClick={closeMobileMenu}
             >
-              {t('login')}
+              {t('check_in')}
             </Link>
           )}
         </div>
