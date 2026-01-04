@@ -1,8 +1,14 @@
+import { getAllParties } from 'convex/parties';
 import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function partyList() {
   try {
-    return NextResponse;
+
+    const parties = getAllParties
+
+    console.log(parties)
+
+    return NextResponse.json({body: "ok"}, {status: 200});
   } catch (err) {
     console.log(err);
   }
