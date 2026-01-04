@@ -57,7 +57,26 @@ export const getOpenPartiesByName = query({
     },
 });
 
-export const getAllPartiesByName = query({
+export const getAllParties = query({
+    handler: async (ctx, args) => {
+        const allParties = await ctx.db
+            .query("parties")
+            .collect();
+        
+        return allParties
+            .map((p) => ({
+                _id: p._id,
+                name: p.name,
+                tableId: p.tableId,
+                closed: p.closed,
+                createdAt: p.createdAt,
+                closedAt: p.closedAt,
+                hasPassword: !!p.passwordHash,
+            }))
+    }
+})
+
+export const getAllPartiesByTableName = query({
     args: { name: v.string() },
     handler: async (ctx, args) => {
         const tables = await ctx.db
