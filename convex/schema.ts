@@ -5,7 +5,7 @@ export default defineSchema({
   tables: defineTable({
     name: v.string(),
     password: v.string(),
-    token: v.string(),
+    token: v.optional(v.string()),
   }),
 
   parties: defineTable({
@@ -39,7 +39,10 @@ export default defineSchema({
     drinkName: v.string(), // denormalized for display
     quantity: v.number(),
     priceAtOrder: v.number(), // price when ordered
+    regularPriceAtOrder: v.optional(v.number()), // original/regular price for savings calculation
     createdAt: v.number(),
+    finalized: v.optional(v.boolean()), // whether order was finalized/submitted
+    finalizedAt: v.optional(v.number()), // when it was finalized
   }),
 
   // price snapshots table to keep historic prices
@@ -63,6 +66,8 @@ export default defineSchema({
     regularPrice: v.optional(v.number()),
     // optional low bound price
     lowBoundPrice: v.optional(v.number()),
+    // optional capacity/stock for supply-demand modeling
+    capacity: v.optional(v.number()),
   // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
   priority: v.optional(v.number()),
   // number of ordered items (moved from a separate orderItems table).

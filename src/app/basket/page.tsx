@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ShoppingCart, Trash2, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { toast } from 'sonner'
 
 export default function BasketPage() {
   const { t } = useLanguage()
@@ -18,22 +19,25 @@ export default function BasketPage() {
   const { currentParty } = useParty()
   const orderItems = useQuery(
     api.drinks.getPartyOrders,
-    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
   const summary = useQuery(
     api.drinks.getPartyOrderSummary,
-    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
   const deleteOrderItem = useMutation(api.drinks.deleteOrderItem)
+  const finalizeOrders = useMutation(api.drinks.finalizePartyOrders)
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set())
+  const [isFinalizing, setIsFinalizing] = useState(false)
 
-  // Check for expired items and auto-delete them
+  // Check for expired items and auto-delete them (only non-finalized)
   useEffect(() => {
     if (!orderItems) return
 
     const now = Date.now()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const expiredItems = orderItems.filter((item: any) => {
+      if (item.finalized) return false // Don't delete finalized items
       const age = now - item.createdAt
       return age > 60000 // 60 seconds
     })
@@ -64,6 +68,21 @@ export default function BasketPage() {
     const age = Date.now() - createdAt
     const remaining = Math.max(0, 60000 - age)
     return Math.ceil(remaining / 1000) // seconds
+  }
+
+  const handleFinalizeOrders = async () => {
+    if (!currentParty) return
+    
+    setIsFinalizing(true)
+    try {
+      await finalizeOrders({ partyId: currentParty as Id<'parties'> })
+      toast.success(t('order_finalized') || 'Order successfully submitted!')
+    } catch (error) {
+      console.error('Failed to finalize orders:', error)
+      toast.error(t('finalize_error') || 'Error submitting order')
+    } finally {
+      setIsFinalizing(false)
+    }
   }
 
   const [, forceUpdate] = useState(0)
@@ -141,88 +160,203 @@ export default function BasketPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            <ShoppingCart className="h-6 w-6" />
-            {t('shopping_basket') || 'Shopping Basket'}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-2">
-            {t('basket_timer_info') || 'Items will be automatically removed after 1 minute'}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {orderItems.map((item: any) => {
-              const remainingSeconds = getRemainingTime(item.createdAt)
-              const isExpiring = remainingSeconds <= 10
-              const isDeleting = deletingItems.has(item._id)
+    <div className="container mx-auto p-6 max-w-4xl space-y-6">
+      {/* Current Basket Card - Only show pending (non-finalized) items */}
+      {orderItems.some((item: any) => !item.finalized) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <ShoppingCart className="h-6 w-6" />
+              {t('shopping_basket') || 'Shopping Basket'}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              {t('basket_timer_info') || 'Items will be automatically removed after 1 minute'}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {orderItems
+                .filter((item: any) => !item.finalized)
+                .map((item: any) => {
+                  const remainingSeconds = getRemainingTime(item.createdAt)
+                  const isExpiring = remainingSeconds <= 10
+                  const isDeleting = deletingItems.has(item._id)
+                  const isExpired = remainingSeconds <= 0
 
-              return (
-                <div
-                  key={item._id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
-                    isExpiring ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="font-medium text-lg">{item.drinkName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {item.quantity}x à {item.priceAtOrder.toFixed(2)} € = {' '}
-                      <span className="font-semibold">
-                        {(item.quantity * item.priceAtOrder).toFixed(2)} €
-                      </span>
+                  // Auto-delete if expired
+                  if (isExpired && !isDeleting) {
+                    handleDeleteItem(item._id)
+                    return null
+                  }
+
+                  if (isDeleting || isExpired) return null
+
+                  return (
+                    <div
+                      key={item._id}
+                      className={`flex items-center justify-between p-4 rounded-lg border ${
+                        isExpiring ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
+                      } text-black`}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-lg text-black">{item.drinkName}</div>
+                        <div className="text-sm text-gray-600">
+                          {item.quantity}x à {item.priceAtOrder.toFixed(2)} € = {' '}
+                          <span className="font-semibold text-black">
+                            {(item.quantity * item.priceAtOrder).toFixed(2)} €
+                          </span>
+                        </div>
+                        <div className={`flex items-center gap-1 text-xs mt-1 ${
+                          isExpiring ? 'text-red-600 font-semibold' : 'text-gray-500'
+                        }`}>
+                          <Clock className="h-3 w-3" />
+                          {remainingSeconds}s {t('remaining') || 'remaining'}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteItem(item._id)}
+                        disabled={isDeleting}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
                     </div>
-                    <div className={`flex items-center gap-1 text-xs mt-1 ${
-                      isExpiring ? 'text-red-600 font-semibold' : 'text-gray-500'
-                    }`}>
-                      <Clock className="h-3 w-3" />
-                      {remainingSeconds}s {t('remaining') || 'remaining'}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteItem(item._id)}
-                    disabled={isDeleting}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-100"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </Button>
+                  )
+                })}
+
+              <Separator className="my-4" />
+
+              <div className="flex items-center justify-between pt-2 text-xl font-bold">
+                <div>
+                  {t('total') || 'Total'} ({orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.quantity, 0)} {t('items') || 'items'})
                 </div>
-              )
-            })}
+                <div>
+                  {orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0).toFixed(2)} €
+                </div>
+              </div>
+
+              {/* Finalize Order Button */}
+              <div className="mt-6">
+                <Button
+                  onClick={handleFinalizeOrders}
+                  disabled={isFinalizing || orderItems.filter((i: any) => !i.finalized).length === 0}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold text-lg py-6"
+                >
+                  {isFinalizing ? (t('finalizing') || 'Submitting...') : (t('finalize_order') || 'Order now at the bar (paid)!')}
+                </Button>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/drinks')}
+                  className="flex-1"
+                >
+                  {t('continue_shopping') || 'Continue Shopping'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Order History Card - Only show finalized items */}
+      {orderItems.some((item: any) => item.finalized) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">
+              {t('order_history') || 'Order History'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-gray-600">
+                  <tr className="text-left">
+                    <th className="pb-2 font-semibold text-white">{t('drink') || 'Drink'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('quantity') || 'Quantity'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('original_price') || 'Original Price'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('ordered_price') || 'Order Price'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('saving') || 'Saving'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('total') || 'Total'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderItems
+                    .filter((item: any) => item.finalized)
+                    .map((item: any) => {
+                      const regularPrice = item.regularPriceAtOrder || item.priceAtOrder
+                      const savingsPerItem = regularPrice - item.priceAtOrder
+                      const itemTotal = item.priceAtOrder * item.quantity
+                      
+                      return (
+                        <tr key={item._id} className="border-b border-gray-700 last:border-0">
+                          <td className="py-3 text-gray-200">{item.drinkName}</td>
+                          <td className="py-3 text-right text-gray-200">{item.quantity}</td>
+                          <td className="py-3 text-right text-gray-400">{regularPrice.toFixed(2)} €</td>
+                          <td className="py-3 text-right text-white font-semibold">{item.priceAtOrder.toFixed(2)} €</td>
+                          <td className="py-3 text-right">
+                            <span className={savingsPerItem > 0 ? 'text-green-400 font-semibold' : 'text-gray-400'}>
+                              {savingsPerItem > 0 ? '-' : ''}{Math.abs(savingsPerItem).toFixed(2)} €
+                            </span>
+                          </td>
+                          <td className="py-3 text-right text-white font-bold">{itemTotal.toFixed(2)} €</td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
 
             <Separator className="my-4" />
 
-            <div className="flex items-center justify-between pt-2 text-xl font-bold">
-              <div>
-                {t('total') || 'Total'} ({summary?.totalItems || 0} {t('items') || 'items'})
+            {/* Summary Section */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-base">
+                <span className="text-gray-300">{t('total') || 'Total'} ({t('original_price') || 'Original'}):</span>
+                <span className="text-gray-300">
+                  {orderItems
+                    .filter((item: any) => item.finalized)
+                    .reduce((sum: number, item: any) => {
+                      const regularPrice = item.regularPriceAtOrder || item.priceAtOrder
+                      return sum + (regularPrice * item.quantity)
+                    }, 0).toFixed(2)} €
+                </span>
               </div>
-              <div>
-                {summary?.totalPrice.toFixed(2) || '0.00'} €
+              <div className="flex justify-between text-base">
+                <span className="text-gray-300">{t('savings_total') || 'Total Savings'}:</span>
+                {(() => {
+                  const totalSavings = orderItems
+                    .filter((item: any) => item.finalized)
+                    .reduce((sum: number, item: any) => {
+                      const regularPrice = item.regularPriceAtOrder || item.priceAtOrder
+                      const savings = (regularPrice - item.priceAtOrder) * item.quantity
+                      return sum + savings
+                    }, 0)
+                  const isPositive = totalSavings > 0
+                  const colorClass = isPositive ? 'text-green-400' : 'text-red-400'
+                  return (
+                    <span className={`${colorClass} font-semibold`}>
+                      {isPositive ? '+' : '-'}{Math.abs(totalSavings).toFixed(2)} €
+                    </span>
+                  )
+                })()}
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-xl font-bold">
+                <span className="text-white">{t('total') || 'Total'}:</span>
+                <span className="text-white">
+                  {orderItems
+                    .filter((item: any) => item.finalized)
+                    .reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0).toFixed(2)} €
+                </span>
               </div>
             </div>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-md border border-blue-200">
-              <p className="text-sm text-blue-900">
-                {t('basket_info') || 'Orders are tracked but not yet submitted to Ready2Order. Complete your party session to finalize orders.'}
-              </p>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/drinks')}
-                className="flex-1"
-              >
-                {t('continue_shopping') || 'Continue Shopping'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

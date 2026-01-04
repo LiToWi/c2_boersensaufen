@@ -5,6 +5,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useParty } from '@/contexts/PartyContext'
+import { useSession } from 'next-auth/react'
 import { Star, ChevronDown } from 'lucide-react'
 import { ChartContainer } from '@/components/ui/chart'
 import dynamic from 'next/dynamic'
@@ -34,6 +35,7 @@ export default function DrinksList() {
   const categories = useQuery(api.categories.listCategories);
   const [selectedCategory] = useState<string | null>(null);
   const { currentParty, currentTable } = useParty()
+  const { data: session } = useSession()
   const [favorites, setFavorites] = useState<Record<string, any>>({})
   const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number }>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
@@ -82,11 +84,12 @@ export default function DrinksList() {
     return g;
   }, [visibleDrinks, categoriesById, t]);
 
-  // Party-scoped favorites: key per currentParty or currentTable
+  // Party-scoped favorites: key per currentParty or currentTable, but only if logged in
   const favoritesKey = useMemo(() => {
+    if (!session) return null // Require login
     const id = currentParty ?? currentTable
     return id ? `favoriteDrinks:${id}` : null
-  }, [currentParty, currentTable])
+  }, [currentParty, currentTable, session])
 
   // load favorites for the current party from localStorage
   useEffect(() => {
@@ -102,8 +105,8 @@ export default function DrinksList() {
   }, [favoritesKey])
 
   const toggleFavorite = (id: string, item: Drink) => {
-    // Only allow toggling when a party/table is active
-    if (!favoritesKey) return
+    // Only allow toggling when logged in and a party/table is active
+    if (!session || !favoritesKey) return
 
     const next = { ...favorites }
     if (next[id]) {
@@ -210,9 +213,9 @@ export default function DrinksList() {
                           <button
                             aria-label={'favorite-' + (d.name ?? '')}
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(id, d); }}
-                            className={"p-1 rounded " + (!favoritesKey ? 'opacity-40 cursor-not-allowed' : '')}
-                            disabled={!favoritesKey}
-                            title={!favoritesKey ? (t('please_join_party') || 'Join a party to favorite items') : undefined}
+                            className={"p-1 rounded " + (!session || !favoritesKey ? 'opacity-40 cursor-not-allowed' : '')}
+                            disabled={!session || !favoritesKey}
+                            title={!session || !favoritesKey ? (t('please_join_party') || 'Join a party to favorite items') : undefined}
                           >
                             <Star className={starClass} fill={fav ? 'currentColor' : 'none'} />
                           </button>

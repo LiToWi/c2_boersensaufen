@@ -82,27 +82,6 @@ export default function UserDashboardPage() {
     return (
         <div className="p-6">
             <h1 className="text-2xl font-semibold mb-6">{t('user_dashboard')}</h1>
-            
-            {/* Quick Link to Basket */}
-            <div className="mb-6">
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold">{t('shopping_basket')}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    {t('view_basket_items') || 'View and manage your basket items'}
-                                </p>
-                            </div>
-                            <Button asChild>
-                                <Link href="/basket">
-                                    {t('view_basket') || 'View Basket'}
-                                </Link>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* Favorites Section */}
             <div className="mb-6">
