@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import { Star, ChevronDown } from 'lucide-react'
 import { ChartContainer } from '@/components/ui/chart'
 import dynamic from 'next/dynamic'
+import BierText from '@/components/ui/bier';
 const DrinkDetailCard = dynamic(() => import('@/components/DrinkDetailCard'), { ssr: false })
 
 type Drink = {
@@ -185,7 +186,7 @@ export default function DrinksList() {
                 >
                   <span className="flex items-center gap-3 min-w-0">
                     <span className="mr-2 text-2xl align-middle">{emoji}</span>
-                    <h2 className="text-3xl md:text-4xl font-semibold truncate">{displayGroup}</h2>
+                    <h2 className="text-3xl md:text-4xl font-semibold truncate"><BierText>{displayGroup}</BierText></h2>
                   </span>
                   <ChevronDown className={"h-6 w-6 transition-transform " + (isCollapsed ? '-rotate-90' : 'rotate-0')} />
                 </button>
@@ -219,7 +220,7 @@ export default function DrinksList() {
                             <Star className={starClass} fill={fav ? 'currentColor' : 'none'} />
                           </button>
                           <button onClick={() => openDetail(d)} className="text-left min-w-0 cursor-pointer">
-                            <span className={nameClass}>{d.name}</span>
+                            <span className={nameClass}><BierText>{d.name}</BierText></span>
                           </button>
                         </div>
                         <span className="ml-4 text-lg md:text-xl font-bold">{typeof d.currentPrice === 'number' ? d.currentPrice.toFixed(2) : d.currentPrice} €</span>
