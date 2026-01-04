@@ -4,6 +4,7 @@ import { SessionProvider } from 'next-auth/react'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { PartyProvider } from '@/contexts/PartyContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { Toaster } from 'sonner'
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -16,6 +17,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <ConvexProvider client={convex}>
             <PartyProvider>
               {children}
+              <Toaster position="top-center" richColors />
             </PartyProvider>
         </ConvexProvider>
       </SessionProvider>

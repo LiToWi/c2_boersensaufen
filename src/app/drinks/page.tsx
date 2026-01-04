@@ -245,7 +245,12 @@ export default function DrinksList() {
             </button>
           </div>
           <div className="mt-4">
-            <DrinkDetailCard id={detail?.id} name={detail?.name} currentPrice={detail?.price} />
+            <DrinkDetailCard 
+              id={detail?.id} 
+              name={detail?.name} 
+              currentPrice={detail?.price} 
+              showOrderButton={true}
+            />
           </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

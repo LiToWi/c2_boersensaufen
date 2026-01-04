@@ -4,16 +4,28 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ShoppingCart } from 'lucide-react'
 import LanguageDropdown from './LanguageDropdown'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useSession, signOut } from 'next-auth/react'
+import { useParty } from '@/contexts/PartyContext'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import LoadingAnimation from './LoadingAnimation';
+import type { Id } from '../../convex/_generated/dataModel'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const { data: session, status } = useSession()
   const { t } = useLanguage()
+  const { currentParty } = useParty()
+  
+  // Get basket item count
+  const basketSummary = useQuery(
+    api.drinks.getPartyOrderSummary,
+    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+  )
+  const basketCount = basketSummary?.itemCount || 0
 
   // Function to close mobile menu
   const closeMobileMenu = () => {
@@ -47,7 +59,7 @@ export default function Navbar() {
         {/* Center + Right group */}
         <div className="flex items-center space-x-8 ml-auto">
           {/* Nav Links */}
-          <div className="hidden md:flex space-x-8 text-xl font-medium">
+          <div className="hidden md:flex space-x-8 text-xl font-medium items-center">
             {!session && (
               <Link href="/" className="hover:text-blue-600 transition">{t('nav_home')}</Link>
             )}
@@ -57,6 +69,16 @@ export default function Navbar() {
             )}
             {session && (
                 <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
+            )}
+            {session && currentParty && (
+              <Link href="/basket" className="hover:text-blue-600 transition relative">
+                <ShoppingCart className="h-6 w-6" />
+                {basketCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {basketCount}
+                  </span>
+                )}
+              </Link>
             )}
           </div>
 
@@ -141,6 +163,16 @@ export default function Navbar() {
               onClick={closeMobileMenu}
             >
               {t('nav_my_party')}
+            </Link>
+          )}
+          {session && currentParty && (
+            <Link 
+              href="/basket" 
+              className="block hover:text-blue-600 transition text-lg flex items-center gap-2"
+              onClick={closeMobileMenu}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {t('shopping_basket')} {basketCount > 0 && `(${basketCount})`}
             </Link>
           )}
           {session ? (

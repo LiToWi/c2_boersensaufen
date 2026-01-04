@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 type PartyContextType = {
   currentTable: string | null
@@ -16,6 +16,25 @@ export function PartyProvider({ children }: { children: ReactNode }) {
   const [currentTable, setCurrentTable] = useState<string | null>(null)
   const [currentParty, setCurrentParty] = useState<string | null>(null)
   const [partyName, setPartyName] = useState<string | null>(null)
+
+  // Rehydrate from localStorage on mount so the party persists across reloads
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('currentParty')
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (!parsed) return
+      // Expecting shape: { table, party, name }
+      const table = parsed.table ?? null
+      const party = parsed.party ?? null
+      const name = parsed.name ?? null
+      if (table) setCurrentTable(table)
+      if (party) setCurrentParty(party)
+      if (name) setPartyName(name)
+    } catch (e) {
+      // ignore parse errors
+    }
+  }, [])
 
   const handleSetCurrentParty = (table: string, party: string, name: string) => {
     setCurrentTable(table)

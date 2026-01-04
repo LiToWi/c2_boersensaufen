@@ -22,6 +22,7 @@ export default function TablePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [partyName, setPartyName] = useState('')
+  const [partyPassword, setPartyPassword] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   
   // Add party context
@@ -31,6 +32,10 @@ export default function TablePage() {
   const [memberKey, setMemberKey] = useState<string | null>(null);
   const createMember = useMutation(api.partyMembers.createMember);
   const leaveMember = useMutation(api.partyMembers.leaveMember);
+  const getPartyOrderSummary = useQuery(
+    api.drinks.getPartyOrderSummary,
+    currentParty ? { partyId: currentParty as any } : "skip"
+  );
 
   useEffect(() => {
       if (status === 'loading') return
@@ -65,6 +70,7 @@ export default function TablePage() {
 
   // Mutations for creating and closing parties
   const createParty = useMutation(api.parties.createParty);
+  const validatePartyPassword = useMutation(api.parties.validatePartyPassword);
   const closeParty = useMutation(api.parties.closeParty);
 
   async function handleCreateParty() {
@@ -72,8 +78,15 @@ export default function TablePage() {
     
     setIsCreating(true);
     try {
-      const newParty = await createParty({ name: partyName, tableId: table._id });
+      const newParty = await createParty({ name: partyName, tableId: table._id, password: partyPassword });
+      console.log('createParty returned', newParty);
+      if (!newParty || !newParty._id) {
+        alert(t('create_party_failed') || 'Failed to create party')
+        return;
+      }
+
       setPartyName('');
+      setPartyPassword('');
       
       // Automatically join the newly created party
       if (tableName && newParty) {
@@ -108,14 +121,28 @@ export default function TablePage() {
         }
         clearCurrentParty();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error closing party:', error);
+      alert(error?.message || t('error_closing_party') || 'Failed to close party. Please try again.');
     }
   }
 
   // Add join party function
   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
   async function handleJoinParty(party: any) {
+    if (!tableName) return;
+
+    // If the party is password-protected, prompt for password and validate
+    if (party?.hasPassword) {
+      const pw = window.prompt(t('enter_party_password'))
+      if (pw === null) return // cancelled
+      const ok = await validatePartyPassword({ partyId: party._id, password: pw })
+      if (!ok) {
+        alert(t('incorrect_password'))
+        return
+      }
+    }
+
     if (tableName) {
       try {
         if (memberKey) {
@@ -131,6 +158,16 @@ export default function TablePage() {
   // leave currently joined party (unregister on server then clear local state)
   async function handleLeaveCurrentParty() {
     if (!currentParty) return;
+    
+    // Check if there are pending orders
+    if (getPartyOrderSummary && getPartyOrderSummary.itemCount > 0) {
+      const confirmed = window.confirm(
+        t('cannot_leave_with_orders') || 
+        'There are pending orders in this party. Please complete or clear all orders before leaving.'
+      );
+      if (!confirmed) return;
+    }
+    
     try {
       if (memberKey) {
         await leaveMember({ partyId: currentParty as any, memberKey });
@@ -212,31 +249,39 @@ export default function TablePage() {
           </CardHeader>
           <CardContent>
             {/* Create Party Form */}
-            <div className="mb-6 p-4 border border-gray-400 rounded-lg">
-              <h3 className="text-lg font-semibold mb-4">{t('create_new_party')}</h3>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="partyName" className="sr-only">{t('party_name')}</Label>
-                  <Input
-                    id="partyName"
-                    placeholder={t('enter_party_name')}
-                    value={partyName}
-                    className="border-gray-400"
-                    onChange={(e) => setPartyName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleCreateParty();
-                      }
-                    }}
-                  />
-                </div>
-                <Button 
-                  onClick={handleCreateParty}
-                  disabled={!partyName.trim() || isCreating}
-                >
-                  {isCreating ? t('creating') : t('create_and_join')}
-                </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Party name */}
+              <div className="w-full">
+                <Label htmlFor="partyName">Party Name</Label>
+                <Input
+                  id="partyName"
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  placeholder={t('party_name_placeholder') || 'Party name'}
+                  className="w-full"
+                />
               </div>
+
+              {/* Party password (optional) */}
+              <div className="w-full">
+                <Label htmlFor="partyPassword">Party Password</Label>
+                <Input
+                  id="partyPassword"
+                  type="password"
+                  value={partyPassword}
+                  onChange={(e) => setPartyPassword(e.target.value)}
+                  placeholder={t('party_password_placeholder') || 'Optional password'}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            {/* Submit / Create party */}
+            <div className="mt-4 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={handleCreateParty}>
+                {t('create_party') || 'Create party'}
+              </button>
             </div>
             <h3 className="text-lg font-semibold mb-4">{t('active_parties')}</h3>
             {!parties || parties.length === 0 ? (

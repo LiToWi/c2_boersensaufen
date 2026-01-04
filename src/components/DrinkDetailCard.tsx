@@ -4,6 +4,13 @@ import React from 'react'
 import { ChartContainer } from '@/components/ui/chart'
 import * as Recharts from 'recharts'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
+import { useParty } from '@/contexts/PartyContext'
+import { Button } from '@/components/ui/button'
+import { ShoppingCart } from 'lucide-react'
+import { toast } from 'sonner'
+import type { Id } from '../../convex/_generated/dataModel'
 
 type Snapshot = { ts: number; price: number }
 
@@ -13,15 +20,42 @@ type Props = {
   currentPrice?: number
   regularPrice?: number
   snapshots?: Snapshot[] | null
+  showOrderButton?: boolean
 }
 
-export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, snapshots }: Props) {
+export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, snapshots, showOrderButton = false }: Props) {
   const { t } = useLanguage()
+  const { currentParty, currentTable } = useParty()
+  const orderDrink = useMutation(api.drinks.orderDrink)
+  const [isOrdering, setIsOrdering] = React.useState(false)
 
   const displayCurrent = typeof currentPrice === 'number' ? currentPrice : undefined
   const displayRegular = typeof regularPrice === 'number' ? regularPrice : undefined
 
   const saving = displayRegular !== undefined && displayCurrent !== undefined ? displayRegular - displayCurrent : undefined
+
+  const handleOrder = async () => {
+    if (!currentParty || !id) {
+      toast.error(t('please_join_party') || 'Please join a party first')
+      return
+    }
+
+    setIsOrdering(true)
+    try {
+      await orderDrink({
+        partyId: currentParty as Id<'parties'>,
+        drinkId: id as Id<'drinks'>,
+        userId: currentTable || 'unknown',
+        quantity: 1,
+      })
+      toast.success(t('order_added') || `${name} added to basket!`)
+    } catch (error) {
+      console.error('Order failed:', error)
+      toast.error(t('order_failed') || 'Failed to add to basket')
+    } finally {
+      setIsOrdering(false)
+    }
+  }
 
   // Build chart data for Recharts
   const data = React.useMemo(() => {
@@ -89,6 +123,20 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
                 </Recharts.LineChart>
                 </ChartContainer>
             </div>
+
+            {showOrderButton && (
+              <div className="mt-4">
+                <Button 
+                  onClick={handleOrder} 
+                  disabled={!currentParty || isOrdering}
+                  className="w-full"
+                  size="lg"
+                >
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  {isOrdering ? (t('adding') || 'Adding...') : (t('add_to_basket') || 'Add to Basket')}
+                </Button>
+              </div>
+            )}
             </div>
         </div>
     </div>

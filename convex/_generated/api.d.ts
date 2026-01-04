@@ -11,10 +11,14 @@
 import type * as actions_removeExcludedReady2Order from "../actions/removeExcludedReady2Order.js";
 import type * as actions_syncReady2Order from "../actions/syncReady2Order.js";
 import type * as categories from "../categories.js";
+import type * as crons from "../crons.js";
 import type * as drinks from "../drinks.js";
 import type * as internal_syncMutations from "../internal/syncMutations.js";
 import type * as parties from "../parties.js";
 import type * as partyMembers from "../partyMembers.js";
+import type * as pricing_engine from "../pricing/engine.js";
+import type * as pricing_types from "../pricing/types.js";
+import type * as pricingTick from "../pricingTick.js";
 import type * as tables from "../tables.js";
 
 import type {
@@ -35,10 +39,14 @@ declare const fullApi: ApiFromModules<{
   "actions/removeExcludedReady2Order": typeof actions_removeExcludedReady2Order;
   "actions/syncReady2Order": typeof actions_syncReady2Order;
   categories: typeof categories;
+  crons: typeof crons;
   drinks: typeof drinks;
   "internal/syncMutations": typeof internal_syncMutations;
   parties: typeof parties;
   partyMembers: typeof partyMembers;
+  "pricing/engine": typeof pricing_engine;
+  "pricing/types": typeof pricing_types;
+  pricingTick: typeof pricingTick;
   tables: typeof tables;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
