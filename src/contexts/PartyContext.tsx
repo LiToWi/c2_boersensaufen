@@ -28,20 +28,45 @@ export function PartyProvider({ children }: { children: ReactNode }) {
       const table = parsed.table ?? null
       const party = parsed.party ?? null
       const name = parsed.name ?? null
-      if (table) setCurrentTable(table)
-      if (party) setCurrentParty(party)
-      if (name) setPartyName(name)
+      // Filter out empty strings - treat them as null and purge invalid persisted value
+      const validTable = table && table !== '' ? table : null
+      const validParty = party && party !== '' ? party : null
+      const validName = name && name !== '' ? name : null
+
+      if (!validTable || !validParty) {
+        localStorage.removeItem('currentParty')
+        return
+      }
+
+      setCurrentTable(validTable)
+      setCurrentParty(validParty)
+      if (validName) setPartyName(validName)
     } catch (e) {
       // ignore parse errors
+      localStorage.removeItem('currentParty')
     }
   }, [])
 
   const handleSetCurrentParty = (table: string, party: string, name: string) => {
-    setCurrentTable(table)
-    setCurrentParty(party)
-    setPartyName(name)
+    // Filter out empty strings
+    const validTable = table && table !== '' ? table : null
+    const validParty = party && party !== '' ? party : null
+    const validName = name && name !== '' ? name : null
+
+    if (!validTable || !validParty) {
+      clearCurrentParty()
+      return
+    }
+
+    setCurrentTable(validTable)
+    setCurrentParty(validParty)
+    setPartyName(validName)
     // Optionally save to localStorage for persistence
-    localStorage.setItem('currentParty', JSON.stringify({ table, party, name }))
+    localStorage.setItem('currentParty', JSON.stringify({ 
+      table: validTable, 
+      party: validParty, 
+      name: validName 
+    }))
   }
 
   const clearCurrentParty = () => {

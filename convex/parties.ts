@@ -58,7 +58,7 @@ export const getOpenPartiesByName = query({
 });
 
 export const getAllParties = query({
-    handler: async (ctx, args) => {
+    handler: async (ctx) => {
         const allParties = await ctx.db
             .query("parties")
             .collect();
@@ -69,9 +69,6 @@ export const getAllParties = query({
                 name: p.name,
                 tableId: p.tableId,
                 closed: p.closed,
-                createdAt: p.createdAt,
-                closedAt: p.closedAt,
-                hasPassword: !!p.passwordHash,
             }))
     }
 })
@@ -146,13 +143,15 @@ export const closeParty = mutation({
             throw new Error("Party not found");
         }
         
-        // Check if there are any order items
+        // Check if there are any non-finalized order items
         const orderItems = await ctx.db
             .query('orderItems')
             .filter((q) => q.eq(q.field('partyId'), args.partyId))
             .collect();
         
-        if (orderItems.length > 0) {
+        const pendingOrders = orderItems.filter(item => !item.finalized);
+        
+        if (pendingOrders.length > 0) {
             throw new Error("Cannot close party with pending orders. Please complete or clear all orders first.");
         }
         

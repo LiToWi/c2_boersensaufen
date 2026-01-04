@@ -9,7 +9,7 @@ import LanguageDropdown from './LanguageDropdown'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useSession, signOut } from 'next-auth/react'
 import { useParty } from '@/contexts/PartyContext'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import LoadingAnimation from './LoadingAnimation';
 import type { Id } from '../../convex/_generated/dataModel'
@@ -18,12 +18,13 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const { data: session, status } = useSession()
   const { t } = useLanguage()
-  const { currentParty } = useParty()
+  const { currentParty, clearCurrentParty } = useParty()
+  const leaveMember = useMutation(api.partyMembers.leaveMember)
   
   // Get basket item count
   const basketSummary = useQuery(
     api.drinks.getPartyOrderSummary,
-    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
   const basketCount = basketSummary?.itemCount || 0
 
@@ -37,6 +38,29 @@ export default function Navbar() {
   // Handle logout and close menu — use signOut without automatic redirect to avoid slow full-page signout
   const handleLogout = async () => {
     closeMobileMenu()
+    
+    // Check if there are pending orders - block leaving if there are any
+    if (basketCount > 0) {
+      alert(
+        t('cannot_leave_with_orders') || 
+        'There are pending orders in this party. Please complete or clear all orders before leaving.'
+      );
+      return;
+    }
+    
+    // Leave party first if currently in one
+    if (currentParty) {
+      try {
+        const memberKey = typeof window !== 'undefined' ? localStorage.getItem('memberKey') : null
+        if (memberKey) {
+          await leaveMember({ partyId: currentParty as Id<'parties'>, memberKey })
+        }
+      } catch (err) {
+        console.error('Failed to leave party during logout:', err)
+      }
+      clearCurrentParty()
+    }
+    
     try {
       await signOut({ redirect: false })
     } finally {

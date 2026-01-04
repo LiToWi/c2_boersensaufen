@@ -71,3 +71,15 @@ export const countMembersForParties = query({
     return args.partyIds.map((id) => ({ partyId: String(id), count: map.get(String(id)) || 0 }));
   },
 });
+
+// Get active member count for a single party
+export const getPartyMemberCount = query({
+  args: { partyId: v.id("parties") },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("partyMembers").collect();
+    const activeMembers = all.filter(
+      (r) => String(r.partyId) === String(args.partyId) && (r.leftAt === undefined || r.leftAt === null)
+    );
+    return activeMembers.length;
+  },
+});
