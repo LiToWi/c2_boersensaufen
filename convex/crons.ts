@@ -11,10 +11,10 @@ import { internal } from './_generated/api'
 
 const crons = cronJobs()
 
-// Execute pricing tick every 15 seconds
+// Execute pricing tick every 10 seconds
 crons.interval(
   'pricing-tick',
-  { seconds: 15 },
+  { seconds: 10 },
   internal.pricingTick.executePricingTick
 )
 

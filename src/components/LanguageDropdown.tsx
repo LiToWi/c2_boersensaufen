@@ -42,13 +42,13 @@ export default function LanguageDropdown({ onSelect }: { onSelect?: (l: 'de'|'en
             onClick={() => choose('de')}
             className={`block w-full text-left hover:text-blue-500 px-3 py-2 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 ${lang === 'de' ? 'font-semibold' : ''}`}
           >
-            {t('choose_de')}
+            🇩🇪 {t('choose_de')}
           </button>
           <button
             onClick={() => choose('en')}
             className={`block w-full text-left hover:text-blue-500 px-3 py-2 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 ${lang === 'en' ? 'font-semibold' : ''}`}
           >
-            {t('choose_en')}
+            🇬🇧 {t('choose_en')}
           </button>
         </div>
       )}

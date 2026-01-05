@@ -14,6 +14,7 @@ export default function UserDashboardPage() {
     const { data: session } = useSession()
     const { currentParty, currentTable } = useParty()
     const [favorites, setFavorites] = useState<Record<string, any>>({})
+    const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number; regularPrice?: number }>(null)
 
     const favoritesKey = React.useMemo(() => {
         const id = currentParty ?? currentTable
@@ -31,6 +32,22 @@ export default function UserDashboardPage() {
             else setFavorites({})
         } catch (e) { setFavorites({}) }
     }, [favoritesKey])
+
+    const openDetail = (item: any) => {
+        setDetail({ id: item.id, name: item.name, price: item.price, regularPrice: item.regularPrice })
+    }
+
+    const closeDetail = () => setDetail(null)
+
+    // Close detail modal on Escape key
+    React.useEffect(() => {
+        if (!detail) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeDetail();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [detail])
 
     const favList = Object.values(favorites || {})
 
@@ -89,13 +106,65 @@ export default function UserDashboardPage() {
                 {favList.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t('no_favorites')}</p>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {favList.map((f: any) => (
-                            <DrinkDetailCard key={f?.id} id={f?.id} name={f?.name} currentPrice={f?.price} />
+                            <div 
+                                key={f?.id}
+                                onClick={() => openDetail(f)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(f); } }}
+                                role="button"
+                                tabIndex={0}
+                                className="cursor-pointer transition-transform hover:scale-105"
+                            >
+                                <DrinkDetailCard 
+                                    id={f?.id} 
+                                    name={f?.name} 
+                                    currentPrice={f?.price}
+                                    regularPrice={f?.regularPrice}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Detail Modal */}
+            {detail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60" onClick={closeDetail} />
+                    <div className="relative z-10 w-[min(900px,95%)] bg-white text-black rounded-lg p-6 shadow-xl">
+                        <div className="flex justify-between items-start">
+                            <button
+                                onClick={closeDetail}
+                                aria-label={t('close') ?? 'Close'}
+                                title={t('close') ?? 'Close'}
+                                className="absolute left-4 top-4 text-gray-600 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-shadow"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="mt-4">
+                            <DrinkDetailCard 
+                                id={detail?.id} 
+                                name={detail?.name} 
+                                currentPrice={detail?.price}
+                                regularPrice={detail?.regularPrice}
+                                showOrderButton={true}
+                            />
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="font-medium">{t('info')}</h4>
+                                <p className="text-sm text-muted-foreground">{t('info_text')}</p>
+                            </div>
+                            <div>
+                                <h4 className="font-medium">{t('history')}</h4>
+                                <p className="text-sm text-muted-foreground">{t('history_text')}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -95,12 +95,19 @@ export default function ShoppingBasket({ partyId }: ShoppingBasketProps) {
           
           <Separator className="my-4" />
           
-          <div className="flex items-center justify-between pt-2 text-lg font-bold">
-            <div>
-              {t('total') || 'Total'} ({summary?.totalItems || 0} {t('items') || 'items'})
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-base">
+              <div>{t('total') || 'Total'} ({summary?.totalItems || 0} {t('items') || 'items'})</div>
+              <div>{summary?.totalPrice.toFixed(2) || '0.00'} €</div>
             </div>
-            <div>
-              {summary?.totalPrice.toFixed(2) || '0.00'} €
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div>{t('trading_fee') || 'Trading Fee (1%)'}</div>
+              <div>+{summary?.totalFees.toFixed(2) || '0.00'} €</div>
+            </div>
+            <Separator className="my-2" />
+            <div className="flex items-center justify-between text-lg font-bold">
+              <div>{t('total_with_fee') || 'Total incl. Fee'}</div>
+              <div>{((summary?.totalPrice || 0) + (summary?.totalFees || 0)).toFixed(2)} €</div>
             </div>
           </div>
         </div>

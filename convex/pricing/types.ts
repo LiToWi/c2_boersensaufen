@@ -44,7 +44,7 @@ export const REGIME_TRANSITIONS: Record<MarketRegime, Record<MarketRegime, numbe
 
 export interface PricingConfig {
   // Core parameters
-  tickIntervalSeconds: number // 15 seconds
+  tickIntervalSeconds: number // 10 seconds
   beta: number // Mean reversion strength (0.04)
   lambda: number // Dirichlet smoothing parameter (0.5)
   k: number // tanh saturation parameter (2)
@@ -66,7 +66,7 @@ export interface PricingConfig {
 }
 
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
-  tickIntervalSeconds: 15,
+  tickIntervalSeconds: 10,
   beta: 0.04,
   lambda: 0.5,
   k: 2,

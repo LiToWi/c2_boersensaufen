@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParty } from "@/contexts/PartyContext"; // Add this import
-import LoadingAnimation from "@/components/LoadingAnimation";
 import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function TablePage() {
@@ -36,10 +35,14 @@ export default function TablePage() {
     api.drinks.getPartyOrderSummary,
     currentParty && currentParty !== "" ? { partyId: currentParty as any } : "skip"
   );
+  const allPartyOrders = useQuery(
+    api.drinks.getPartyOrders,
+    currentParty && currentParty !== "" ? { partyId: currentParty as any } : "skip"
+  );
 
   useEffect(() => {
       if (status === 'loading') return
-      if (!session) router.push('/login')
+      if (!session) router.push('/')
   }, [session, status, router])
 
   // ensure we have a persistent member key for this browser
@@ -73,13 +76,44 @@ export default function TablePage() {
   const validatePartyPassword = useMutation(api.parties.validatePartyPassword);
   const closeParty = useMutation(api.parties.closeParty);
 
+  // Auto-rejoin party on mount if already a member
+  useEffect(() => {
+    if (!memberKey || !currentParty || !tableName) return;
+    
+    // If currentTable is set, only rejoin if it matches tableName
+    // If currentTable is not set yet, it might be loading - so proceed with rejoin
+    if (currentTable && currentTable !== tableName) return;
+
+    const autoRejoin = async () => {
+      try {
+        await createMember({ partyId: currentParty as any, memberKey });
+        console.log('Auto-rejoin successful for party:', currentParty);
+      } catch (err) {
+        console.error('Auto-rejoin failed:', err);
+      }
+    };
+
+    autoRejoin();
+  }, [memberKey, currentParty, currentTable, tableName, createMember]);
+
   async function handleCreateParty(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!partyName.trim() || !table?._id) return;
+
+    if (!memberKey) {
+      alert(t('creator_required') || 'Unable to create party: missing creator id.');
+      return;
+    }
+
+    const activeCurrentParty = parties?.find((p: any) => p._id === currentParty && !p.closed);
+    if (activeCurrentParty) {
+      alert(t('create_party_limit') || 'You can only have one active party at a time.');
+      return;
+    }
     
     setIsCreating(true);
     try {
-      const newParty = await createParty({ name: partyName, tableId: table._id, password: partyPassword });
+      const newParty = await createParty({ name: partyName, tableId: table._id, password: partyPassword, creatorId: memberKey });
       console.log('createParty returned', newParty);
       if (!newParty || !newParty._id) {
         alert(t('create_party_failed') || 'Failed to create party')
@@ -103,15 +137,28 @@ export default function TablePage() {
       }
     } catch (error) {
       console.error('Error creating party:', error);
+      const errorMsg = (error as any)?.message || '';
+      
+      // Check if it's the "party already exists" error
+      if (errorMsg.includes('active party already exists')) {
+        alert(t('party_already_exists') || 'An active party already exists at this table. Please close it first or choose a different name.');
+      } else {
+        alert(t('create_party_failed') || 'Failed to create party');
+      }
     } finally {
       setIsCreating(false);
     }
   }
 
   async function handleCloseParty(partyId: string) {
+    if (!memberKey) {
+      alert(t('creator_required') || 'Unable to close party: missing creator id.');
+      return;
+    }
+
     try {
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      await closeParty({ partyId: partyId as any });
+      await closeParty({ partyId: partyId as any, creatorId: memberKey });
       
       // If the current party is being closed, clear it
       if (currentParty === partyId) {
@@ -124,7 +171,21 @@ export default function TablePage() {
       }
     } catch (error: any) {
       console.error('Error closing party:', error);
-      alert(error?.message || t('error_closing_party') || 'Failed to close party. Please try again.');
+      const errorMsg = error?.message || '';
+      
+      // Map backend errors to localized messages
+      let localizedError: string;
+      if (errorMsg.includes('finalized orders')) {
+        localizedError = t('cannot_close_with_finalized') || 'Cannot close party with finalized orders. All payments must be settled at the register before closing.';
+      } else if (errorMsg.includes('pending orders')) {
+        localizedError = t('cannot_leave_with_orders') || 'There are pending orders in this party. Please complete or clear all orders first.';
+      } else if (errorMsg.includes('creator')) {
+        localizedError = t('only_creator_can_close') || 'Only the party creator can close this party.';
+      } else {
+        localizedError = t('error_closing_party') || 'Failed to close party. Please try again.';
+      }
+      
+      alert(localizedError);
     }
   }
 
@@ -160,13 +221,40 @@ export default function TablePage() {
   async function handleLeaveCurrentParty() {
     if (!currentParty) return;
     
-    // Check if there are pending orders - block leaving if there are any
-    if (getPartyOrderSummary && getPartyOrderSummary.itemCount > 0) {
-      alert(
-        t('cannot_leave_with_orders') || 
-        'There are pending orders in this party. Please complete or clear all orders before leaving.'
-      );
+    // Wait for orders to load before allowing leave
+    if (allPartyOrders === undefined) {
+      alert(t('loading') || 'Loading...');
       return;
+    }
+    
+    // If there are orders, check if user is creator or last member
+    if (allPartyOrders.length > 0) {
+      const party = parties?.find((p: any) => p._id === currentParty);
+      const memberCount = memberCounts?.find((c: any) => c.partyId === currentParty)?.count ?? 0;
+      const isCreator = party && party.creatorId === memberKey;
+      const isLastMember = memberCount <= 1;
+      
+      // Block leaving if you are the creator OR the last member
+      if (isCreator || isLastMember) {
+        if (isCreator && isLastMember) {
+          alert(
+            t('creator_cannot_leave_last') ||
+            'As the party creator and last member, you must close the party and settle all payments before leaving.'
+          );
+        } else if (isCreator) {
+          alert(
+            t('creator_cannot_leave') ||
+            'As the party creator, you cannot leave while there are orders. Please close the party or transfer ownership first.'
+          );
+        } else {
+          alert(
+            t('last_member_cannot_leave') ||
+            'As the last member, you cannot leave while there are orders. Please close the party first.'
+          );
+        }
+        return;
+      }
+      // Non-creators with other members can leave even with orders
     }
     
     try {
@@ -183,10 +271,10 @@ export default function TablePage() {
   const partyIdsArg = parties && parties.length ? { partyIds: parties.map((p: any) => p._id) } : "skip";
   const memberCounts = useQuery(api.partyMembers.countMembersForParties, partyIdsArg as any);
   
-  if (loading) return <LoadingAnimation />;
+  if (loading) return null;
 
-  if (status === 'loading') return <TableSkeleton />
-  if (!session) return <div><LoadingAnimation /></div>
+  if (status === 'loading') return null;
+  if (!session) return null;
 
   if (!tableName) {
     return (
@@ -253,19 +341,20 @@ export default function TablePage() {
             <form onSubmit={handleCreateParty} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Party name */}
               <div className="w-full">
-                <Label htmlFor="partyName">Party Name</Label>
+                <Label htmlFor="partyName">{t('party_name_placeholder_title')}</Label>
                 <Input
                   id="partyName"
                   value={partyName}
                   onChange={(e) => setPartyName(e.target.value)}
                   placeholder={t('party_name_placeholder') || 'Party name'}
                   className="w-full"
+                  autoFocus
                 />
               </div>
 
               {/* Party password (optional) */}
               <div className="w-full">
-                <Label htmlFor="partyPassword">Party Password</Label>
+                <Label htmlFor="partyPassword">{t('party_password_placeholder_title')}</Label>
                 <Input
                   id="partyPassword"
                   type="password"

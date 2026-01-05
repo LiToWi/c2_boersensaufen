@@ -70,6 +70,10 @@ export const orderDrink = mutation({
     const orderValue = quantity * drink.currentPrice;
     const feePaid = orderValue * 0.01; // 1% fee
     
+    // Round prices to 2 decimal places (ceiling)
+    const roundedPrice = Math.ceil(drink.currentPrice * 100) / 100;
+    const roundedFee = Math.round(feePaid * 100) / 100;
+    
     // Create order item
     await ctx.db.insert('orderItems', {
       orderId,
@@ -77,9 +81,9 @@ export const orderDrink = mutation({
       drinkId: args.drinkId,
       drinkName: drink.name,
       quantity,
-      priceAtOrder: drink.currentPrice,
+      priceAtOrder: roundedPrice,
       regularPriceAtOrder: drink.regularPrice,
-      feePaid,
+      feePaid: roundedFee,
       createdAt: Date.now(),
     });
     
@@ -114,7 +118,7 @@ export const getPartyOrders = query({
 export const getPartyOrderSummary = query({
   args: { partyId: v.optional(v.union(v.id('parties'), v.string())) },
   handler: async (ctx, args) => {
-    if (!args.partyId) return { totalItems: 0, totalPrice: 0, itemCount: 0 };
+    if (!args.partyId) return { totalItems: 0, totalPrice: 0, totalFees: 0, itemCount: 0 };
 
     const orderItems = await ctx.db
       .query('orderItems')
@@ -126,8 +130,9 @@ export const getPartyOrderSummary = query({
     
     const totalItems = pendingItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = pendingItems.reduce((sum, item) => sum + (item.quantity * item.priceAtOrder), 0);
+    const totalFees = pendingItems.reduce((sum, item) => sum + item.feePaid, 0);
     
-    return { totalItems, totalPrice, itemCount: pendingItems.length };
+    return { totalItems, totalPrice, totalFees, itemCount: pendingItems.length };
   },
 });
 

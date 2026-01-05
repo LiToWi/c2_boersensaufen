@@ -10,13 +10,29 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { ShoppingCart, Trash2, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 
 export default function BasketPage() {
   const { t } = useLanguage()
   const router = useRouter()
+  const { data: session, status } = useSession()
   const { currentParty } = useParty()
+  const cardClass = "bg-slate-900/80 border border-blue-500/40 text-white shadow-lg backdrop-blur"
+
+  // Redirect to home if not logged in
+  useEffect(() => {
+    if (status === 'loading') return
+    if (!session) {
+      router.push('/')
+    }
+  }, [session, status, router])
+
+  // Show blank page while loading
+  if (status === 'loading') return null;
+  if (!session) return null;
+
   const orderItems = useQuery(
     api.drinks.getPartyOrders,
     currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
@@ -98,7 +114,7 @@ export default function BasketPage() {
   if (!currentParty) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <Card>
+        <Card className={cardClass}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-6 w-6" />
@@ -121,7 +137,7 @@ export default function BasketPage() {
   if (!orderItems) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <Card>
+        <Card className={cardClass}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-6 w-6" />
@@ -139,7 +155,7 @@ export default function BasketPage() {
   if (orderItems.length === 0) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <Card>
+        <Card className={cardClass}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-6 w-6" />
@@ -163,7 +179,7 @@ export default function BasketPage() {
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
       {/* Current Basket Card - Only show pending (non-finalized) items */}
       {orderItems.some((item: any) => !item.finalized) && (
-        <Card>
+        <Card className={cardClass}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <ShoppingCart className="h-6 w-6" />
@@ -195,14 +211,14 @@ export default function BasketPage() {
                     <div
                       key={item._id}
                       className={`flex items-center justify-between p-4 rounded-lg border ${
-                        isExpiring ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
-                      } text-black`}
+                        isExpiring ? 'bg-red-900/40 border-red-500/60' : 'bg-slate-800/60 border-slate-600'
+                      } text-white`}
                     >
                       <div className="flex-1">
-                        <div className="font-medium text-lg text-black">{item.drinkName}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-medium text-lg text-white">{item.drinkName}</div>
+                        <div className="text-sm text-gray-300">
                           {item.quantity}x à {item.priceAtOrder.toFixed(2)} € = {' '}
-                          <span className="font-semibold text-black">
+                          <span className="font-semibold text-white">
                             {(item.quantity * item.priceAtOrder).toFixed(2)} €
                           </span>
                         </div>
@@ -228,12 +244,30 @@ export default function BasketPage() {
 
               <Separator className="my-4" />
 
-              <div className="flex items-center justify-between pt-2 text-xl font-bold">
-                <div>
-                  {t('total') || 'Total'} ({orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.quantity, 0)} {t('items') || 'items'})
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-base">
+                  <div>
+                    {t('total') || 'Total'} ({orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.quantity, 0)} {t('items') || 'items'})
+                  </div>
+                  <div>
+                    {orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0).toFixed(2)} €
+                  </div>
                 </div>
-                <div>
-                  {orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0).toFixed(2)} €
+                <div className="flex items-center justify-between text-sm text-gray-300">
+                  <div>{t('trading_fee') || 'Trading Fee (1%)'}</div>
+                  <div>
+                    +{orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.feePaid, 0).toFixed(2)} €
+                  </div>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex items-center justify-between text-xl font-bold">
+                  <div>{t('total_with_fee') || 'Total incl. Fee'}</div>
+                  <div>
+                    {(
+                      orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0) +
+                      orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.feePaid, 0)
+                    ).toFixed(2)} €
+                  </div>
                 </div>
               </div>
 
@@ -264,7 +298,7 @@ export default function BasketPage() {
 
       {/* Order History Card - Only show finalized items */}
       {orderItems.some((item: any) => item.finalized) && (
-        <Card>
+        <Card className={cardClass}>
           <CardHeader>
             <CardTitle className="text-2xl">
               {t('order_history') || 'Order History'}
@@ -280,6 +314,7 @@ export default function BasketPage() {
                     <th className="pb-2 font-semibold text-white text-right">{t('original_price') || 'Original Price'}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('ordered_price') || 'Order Price'}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('saving') || 'Saving'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{t('trading_fee') || 'Fee (1%)'}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('total') || 'Total'}</th>
                   </tr>
                 </thead>
@@ -290,6 +325,8 @@ export default function BasketPage() {
                       const regularPrice = item.regularPriceAtOrder || item.priceAtOrder
                       const savingsPerItem = regularPrice - item.priceAtOrder
                       const itemTotal = item.priceAtOrder * item.quantity
+                      const itemFee = item.feePaid || 0
+                      const totalSavings = savingsPerItem * item.quantity
                       
                       return (
                         <tr key={item._id} className="border-b border-gray-700 last:border-0">
@@ -298,11 +335,12 @@ export default function BasketPage() {
                           <td className="py-3 text-right text-gray-400">{regularPrice.toFixed(2)} €</td>
                           <td className="py-3 text-right text-white font-semibold">{item.priceAtOrder.toFixed(2)} €</td>
                           <td className="py-3 text-right">
-                            <span className={savingsPerItem > 0 ? 'text-green-400 font-semibold' : 'text-gray-400'}>
-                              {savingsPerItem > 0 ? '-' : ''}{Math.abs(savingsPerItem).toFixed(2)} €
+                            <span className={totalSavings > 0 ? 'text-green-400 font-semibold' : totalSavings < 0 ? 'text-red-400 font-semibold' : 'text-gray-400'}>
+                              {totalSavings > 0 ? '+' : ''}{totalSavings.toFixed(2)} €
                             </span>
                           </td>
-                          <td className="py-3 text-right text-white font-bold">{itemTotal.toFixed(2)} €</td>
+                          <td className="py-3 text-right text-yellow-400">{itemFee.toFixed(2)} €</td>
+                          <td className="py-3 text-right text-white font-bold">{(itemTotal + itemFee).toFixed(2)} €</td>
                         </tr>
                       )
                     })}
@@ -339,18 +377,26 @@ export default function BasketPage() {
                   const colorClass = isPositive ? 'text-green-400' : 'text-red-400'
                   return (
                     <span className={`${colorClass} font-semibold`}>
-                      {isPositive ? '+' : '-'}{Math.abs(totalSavings).toFixed(2)} €
+                      {isPositive ? '+' : ''}{totalSavings.toFixed(2)} €
                     </span>
                   )
                 })()}
               </div>
+              <div className="flex justify-between text-base">
+                <span className="text-gray-300">{t('trading_fee') || 'Trading Fee (1%)'}:</span>
+                <span className="text-yellow-400">
+                  +{orderItems
+                    .filter((item: any) => item.finalized)
+                    .reduce((sum: number, item: any) => sum + (item.feePaid || 0), 0).toFixed(2)} €
+                </span>
+              </div>
               <Separator className="my-2" />
               <div className="flex justify-between text-xl font-bold">
-                <span className="text-white">{t('total') || 'Total'}:</span>
+                <span className="text-white">{t('total_with_fee') || 'Total incl. Fee'}:</span>
                 <span className="text-white">
                   {orderItems
                     .filter((item: any) => item.finalized)
-                    .reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder), 0).toFixed(2)} €
+                    .reduce((sum: number, item: any) => sum + (item.quantity * item.priceAtOrder) + (item.feePaid || 0), 0).toFixed(2)} €
                 </span>
               </div>
             </div>

@@ -200,9 +200,12 @@ export const executePricingTick = internalMutation({
       
       priceUpdates.push(result)
       
+      // Round price to 2 decimal places (ceiling)
+      const roundedPrice = Math.ceil(result.newPrice * 100) / 100
+      
       // Update drink price in database
       await ctx.db.patch(drink._id, {
-        currentPrice: result.newPrice,
+        currentPrice: roundedPrice,
       })
       
       // Update drink market state
@@ -223,10 +226,10 @@ export const executePricingTick = internalMutation({
         volatilityReducedUntil,
       })
       
-      // Store price snapshot for history
+      // Store price snapshot for history (using rounded price)
       await ctx.db.insert('priceSnapshots', {
         drinkId: drink._id,
-        price: result.newPrice,
+        price: roundedPrice,
         ts: now,
         source: 'pricing-engine',
         reason: `tick-${currentTickId}`,

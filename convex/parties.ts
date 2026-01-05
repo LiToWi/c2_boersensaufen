@@ -53,6 +53,7 @@ export const getOpenPartiesByName = query({
                 createdAt: p.createdAt,
                 closedAt: p.closedAt,
                 hasPassword: !!p.passwordHash,
+                creatorId: p.creatorId,
             }));
     },
 });
@@ -108,8 +109,19 @@ export const getAllPartiesByTableName = query({
 });
 
 export const createParty = mutation({
-    args: { name: v.string(), tableId: v.id("tables"), password: v.optional(v.string()) },
+    args: { name: v.string(), tableId: v.id("tables"), password: v.optional(v.string()), creatorId: v.string() },
     handler: async (ctx, args) => {
+        // Block creating a second active party for the same table
+        const existingActive = await ctx.db
+            .query("parties")
+            .filter((q) => q.eq(q.field("tableId"), args.tableId))
+            .filter((q) => q.eq(q.field("closed"), false))
+            .first();
+
+        if (existingActive) {
+            throw new Error("An active party already exists for this table. Close it before creating a new one.");
+        }
+
         let passwordHash: string | undefined = undefined;
         if (args.password && args.password.trim() !== '') {
             passwordHash = await sha256Hex(args.password);
@@ -118,6 +130,7 @@ export const createParty = mutation({
         const party = {
             name: args.name,
             tableId: args.tableId,
+            creatorId: args.creatorId,
             closed: false,
             createdAt: Date.now(),
             passwordHash,
@@ -139,23 +152,32 @@ export const validatePartyPassword = mutation({
 });
 
 export const closeParty = mutation({
-    args: { partyId: v.id("parties") },
+    args: { partyId: v.id("parties"), creatorId: v.string() },
     handler: async (ctx, args) => {
         const party = await ctx.db.get(args.partyId);
         if (!party) {
             throw new Error("Party not found");
         }
+
+        if (party.creatorId && party.creatorId !== args.creatorId) {
+            throw new Error("Only the party creator can close this party.");
+        }
         
-        // Check if there are any non-finalized order items
+        // Check if there are any order items at all
         const orderItems = await ctx.db
             .query('orderItems')
             .filter((q) => q.eq(q.field('partyId'), args.partyId))
             .collect();
         
         const pendingOrders = orderItems.filter(item => !item.finalized);
+        const finalizedOrders = orderItems.filter(item => item.finalized);
         
         if (pendingOrders.length > 0) {
             throw new Error("Cannot close party with pending orders. Please complete or clear all orders first.");
+        }
+
+        if (finalizedOrders.length > 0) {
+            throw new Error("Cannot close party with finalized orders. All payments must be settled at the register before closing.");
         }
         
         await ctx.db.patch(args.partyId, { closed: true, closedAt: Date.now() });

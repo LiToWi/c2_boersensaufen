@@ -20,6 +20,7 @@ import type * as partyMembers from "../partyMembers.js";
 import type * as pricing_engine from "../pricing/engine.js";
 import type * as pricing_types from "../pricing/types.js";
 import type * as pricingTick from "../pricingTick.js";
+import type * as snapshots from "../snapshots.js";
 import type * as tables from "../tables.js";
 
 import type {
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   "pricing/engine": typeof pricing_engine;
   "pricing/types": typeof pricing_types;
   pricingTick: typeof pricingTick;
+  snapshots: typeof snapshots;
   tables: typeof tables;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

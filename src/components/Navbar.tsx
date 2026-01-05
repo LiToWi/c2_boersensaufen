@@ -11,7 +11,6 @@ import { useSession, signOut } from 'next-auth/react'
 import { useParty } from '@/contexts/PartyContext'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import LoadingAnimation from './LoadingAnimation';
 import type { Id } from '../../convex/_generated/dataModel'
 
 export default function Navbar() {
@@ -24,6 +23,10 @@ export default function Navbar() {
   // Get basket item count
   const basketSummary = useQuery(
     api.drinks.getPartyOrderSummary,
+    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
+  )
+  const allPartyOrders = useQuery(
+    api.drinks.getPartyOrders,
     currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
   const basketCount = basketSummary?.itemCount || 0
@@ -39,26 +42,13 @@ export default function Navbar() {
   const handleLogout = async () => {
     closeMobileMenu()
     
-    // Check if there are pending orders - block leaving if there are any
-    if (basketCount > 0) {
+    // Block logout if user is still in a party
+    if (currentParty) {
       alert(
-        t('cannot_leave_with_orders') || 
-        'There are pending orders in this party. Please complete or clear all orders before leaving.'
+        t('must_leave_party_first') || 
+        'Please leave your party before logging out.'
       );
       return;
-    }
-    
-    // Leave party first if currently in one
-    if (currentParty) {
-      try {
-        const memberKey = typeof window !== 'undefined' ? localStorage.getItem('memberKey') : null
-        if (memberKey) {
-          await leaveMember({ partyId: currentParty as Id<'parties'>, memberKey })
-        }
-      } catch (err) {
-        console.error('Failed to leave party during logout:', err)
-      }
-      clearCurrentParty()
     }
     
     try {
@@ -108,9 +98,7 @@ export default function Navbar() {
 
           {/* Login/Logout Button */}
           {status === 'loading' ? (
-            <div className="hidden md:block text-sm">
-              <LoadingAnimation />
-            </div>
+            <div className="hidden md:block text-sm" />
           ) : session ? (
             <div className="hidden md:flex items-center space-x-4">
               <div className="hidden md:flex items-center space-x-4">

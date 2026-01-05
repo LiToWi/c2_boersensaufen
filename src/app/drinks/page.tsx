@@ -36,7 +36,7 @@ export default function DrinksList() {
   const { currentParty, currentTable } = useParty()
   const { data: session } = useSession()
   const [favorites, setFavorites] = useState<Record<string, any>>({})
-  const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number }>(null)
+  const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number; regularPrice?: number }>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
   const toggleGroup = (g: string) => {
@@ -111,14 +111,14 @@ export default function DrinksList() {
     if (next[id]) {
       delete next[id]
     } else {
-      next[id] = { id, name: item.name, price: item.currentPrice, addedAt: Date.now() }
+      next[id] = { id, name: item.name, price: item.currentPrice, regularPrice: item.regularPrice, addedAt: Date.now() }
     }
     setFavorites(next)
     try { localStorage.setItem(favoritesKey, JSON.stringify(next)) } catch(e){}
   }
 
   const openDetail = (item: Drink) => {
-    setDetail({ id: String(item._id ?? item.r2oId ?? item.name), name: item.name, price: item.currentPrice })
+    setDetail({ id: String(item._id ?? item.r2oId ?? item.name), name: item.name, price: item.currentPrice, regularPrice: item.regularPrice })
   }
 
   const closeDetail = () => setDetail(null)
@@ -251,19 +251,10 @@ export default function DrinksList() {
             <DrinkDetailCard 
               id={detail?.id} 
               name={detail?.name} 
-              currentPrice={detail?.price} 
+              currentPrice={detail?.price}
+              regularPrice={detail?.regularPrice}
               showOrderButton={true}
             />
-          </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-medium">{t('info')}</h4>
-              <p className="text-sm text-muted-foreground">{t('info_text')}</p>
-            </div>
-            <div>
-              <h4 className="font-medium">{t('history')}</h4>
-              <p className="text-sm text-muted-foreground">{t('history_text')}</p>
-            </div>
           </div>
         </div>
       </div>

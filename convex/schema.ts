@@ -12,6 +12,8 @@ export default defineSchema({
     tableId: v.id('tables'),
     name: v.string(),
     closed: v.boolean(),
+    // creator identifier (e.g., memberKey); optional for legacy rows
+    creatorId: v.optional(v.string()),
     // optional password hash to secure a party; clients should not receive the raw hash
     passwordHash: v.optional(v.string()),
     createdAt: v.number(), // store as Date.now()
@@ -40,7 +42,7 @@ export default defineSchema({
     quantity: v.number(),
     priceAtOrder: v.number(), // price when ordered
     regularPriceAtOrder: v.optional(v.number()), // original/regular price for savings calculation
-    feePaid: v.number(), // 1% trading fee on order value
+    feePaid: v.number(), // 1.5% trading fee on order value
     createdAt: v.number(),
     finalized: v.optional(v.boolean()), // whether order was finalized/submitted
     finalizedAt: v.optional(v.number()), // when it was finalized
@@ -54,7 +56,8 @@ export default defineSchema({
     source: v.optional(v.string()),
     reason: v.optional(v.string()),
     meta: v.optional(v.any()),
-  }),
+  })
+    .index('by_drink_and_time', ['drinkId', 'ts']),
 
   drinks: defineTable({
     // external id from Ready2Order, keep as string for flexibility
