@@ -1,6 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Helper: compute SHA-256 hex. Prefer Web Crypto if available, otherwise fall
 // back to a simple (non-cryptographic) hash as a last resort.
@@ -74,6 +75,53 @@ export const getAllParties = query({
     }
 })
 
+export const getPartyById = query({
+    args: { id: v.id("parties") },
+    handler: async (ctx, args) => {
+        const party = await ctx.db.get(args.id);
+        if (!party) return null;
+        
+        return {
+            _id: party._id,
+            name: party.name,
+            tableId: party.tableId,
+            closed: party.closed,
+            createdAt: party.createdAt,
+            closedAt: party.closedAt,
+            hasPassword: !!party.passwordHash,
+            creatorId: party.creatorId,
+            r2oTableId: party.r2oTableId,
+            r2oTableCreationStatus: party.r2oTableCreationStatus,
+            r2oTableCreationError: party.r2oTableCreationError,
+            r2oTableCreatedAt: party.r2oTableCreatedAt,
+        };
+    },
+});
+
+export const getPartyR2OStatus = query({
+    args: { id: v.id("parties") },
+    handler: async (ctx, args) => {
+        const party = await ctx.db.get(args.id);
+        if (!party) return null;
+        
+        console.log('[Query] Party R2O Status:', {
+            partyId: party._id,
+            r2oTableId: party.r2oTableId,
+            r2oTableCreationStatus: party.r2oTableCreationStatus,
+            r2oTableCreationError: party.r2oTableCreationError,
+        });
+        
+        return {
+            partyId: party._id,
+            partyName: party.name,
+            r2oTableId: party.r2oTableId,
+            r2oTableCreationStatus: party.r2oTableCreationStatus,
+            r2oTableCreationError: party.r2oTableCreationError,
+            r2oTableCreatedAt: party.r2oTableCreatedAt,
+        };
+    },
+});
+
 export const getAllPartiesByTableName = query({
     args: { name: v.string() },
     handler: async (ctx, args) => {
@@ -133,6 +181,16 @@ export const createParty = mutation({
             passwordHash,
         };
         const id = await ctx.db.insert("parties", party);
+        
+        // Schedule R2O table creation asynchronously
+        // Party creation continues even if R2O creation fails
+        console.log('[Party] Scheduling R2O table creation for party:', id, args.name);
+        ctx.scheduler.runAfter(0, internal.r2oCreateTable.createPartyR2OTable, {
+            partyId: id,
+            partyName: args.name,
+        });
+        console.log('[Party] R2O table creation scheduled');
+        
         return { ...party, _id: id, hasPassword: !!passwordHash };
     },
 });

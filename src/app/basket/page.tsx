@@ -91,8 +91,29 @@ export default function BasketPage() {
     
     setIsFinalizing(true)
     try {
+      // First finalize the orders in Convex
       await finalizeOrders({ partyId: currentParty as Id<'parties'> })
-      toast.success(t('order_finalized') || 'Order successfully submitted!')
+      
+      // Then submit to Ready2Order
+      try {
+        const response = await fetch('/api/ready2order/submit-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ partyId: currentParty }),
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok || !result.success) {
+          console.error('R2O submission failed:', result.error)
+          toast.error(t('r2o_submission_failed') || 'Order finalized but payment submission had an issue. Please notify staff.')
+        } else {
+          toast.success(t('order_finalized') || 'Order successfully submitted and ready for payment!')
+        }
+      } catch (r2oError) {
+        console.error('R2O submission error:', r2oError)
+        toast.error(t('r2o_submission_failed') || 'Order finalized but payment submission had an issue. Please notify staff.')
+      }
     } catch (error) {
       console.error('Failed to finalize orders:', error)
       toast.error(t('finalize_error') || 'Error submitting order')

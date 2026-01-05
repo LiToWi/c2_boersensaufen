@@ -24,6 +24,18 @@ export const populatePhysicalTables = mutation({
       ["18", "helzvs", "yuoxcpfpucphywcgyjvmkgzthvwirkmqw"],
       ["19", "xmtfcn", "snmgtdlzvlxqbodfaypaeuhohkonozwyc"],
       ["20", "qnwivi", "ocwgprvoovwnkbavoeeavxweembqfgsdv"],
+      ["21", "gqzvot", "zgbjhdqutrxlwlmukjzjzswpzgzjgbfve"],
+      ["22", "ycfzrm", "bbxsweyqutmdfwwjzgbqutrxlwlmukjzj"],
+      ["23", "pdnqie", "ljhdqutrxlwlmukjzjzswpzgzjgbfvezg"],
+      ["24", "wshcug", "utrxlwlmukjzjzswpzgzjgbfvezgbjhdq"],
+      ["25", "lqutrx", "lwlmukjzjzswpzgzjgbfvezgbjhdqutrx"],
+      ["26", "mukjzj", "zswpzgzjgbfvezgbjhdqutrxlwlmukjzj"],
+      ["27", "zswpzg", "jgbfvezgbjhdqutrxlwlmukjzjzswpzg"],
+      ["28", "jgbfve", "zgbjhdqutrxlwlmukjzjzswpzgzjgbfve"],
+      ["29", "vezgbj", "hdqutrxlwlmukjzjzswpzgzjgbfvezgbj"],
+      ["30", "hdqutr", "xlwlmukjzjzswpzgzjgbfvezgbjhdqutrx"],
+      ["Stammtisch", "2310", "vorstand"],
+      ["admin", "23102005", "adminaccesskey"],
     ].map(
       async (n) =>
         await ctx.db.insert("tables", {

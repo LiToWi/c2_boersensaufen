@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Manufacturing_Consent, Quantico, Unica_One } from "next/font/google";
 import "./globals.css";
 import Navbar from '@/components/Navbar'
+import BasketTimerBanner from '@/components/BasketTimerBanner'
 import Providers from '@/components/Providers';
 
 const geistSans = Geist({
@@ -80,6 +81,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} ${unica.variable} ${quantico.variable} ${manufacturing.variable} antialiased flex flex-col`}>
         <Providers>
           <Navbar />
+          <BasketTimerBanner />
 
           <main className="flex-grow min-h-screen">{children}</main>
 

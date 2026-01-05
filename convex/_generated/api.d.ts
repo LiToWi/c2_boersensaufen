@@ -20,6 +20,10 @@ import type * as partyMembers from "../partyMembers.js";
 import type * as pricing_engine from "../pricing/engine.js";
 import type * as pricing_types from "../pricing/types.js";
 import type * as pricingTick from "../pricingTick.js";
+import type * as r2oCreateTable from "../r2oCreateTable.js";
+import type * as r2oMutations from "../r2oMutations.js";
+import type * as r2oQueries from "../r2oQueries.js";
+import type * as r2oSubmitOrder from "../r2oSubmitOrder.js";
 import type * as snapshots from "../snapshots.js";
 import type * as tables from "../tables.js";
 
@@ -50,6 +54,10 @@ declare const fullApi: ApiFromModules<{
   "pricing/engine": typeof pricing_engine;
   "pricing/types": typeof pricing_types;
   pricingTick: typeof pricingTick;
+  r2oCreateTable: typeof r2oCreateTable;
+  r2oMutations: typeof r2oMutations;
+  r2oQueries: typeof r2oQueries;
+  r2oSubmitOrder: typeof r2oSubmitOrder;
   snapshots: typeof snapshots;
   tables: typeof tables;
 }>;

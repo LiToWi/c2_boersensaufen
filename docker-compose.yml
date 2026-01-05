@@ -58,6 +58,7 @@ services:
       - INSTANCE_SECRET
       - MYSQL_URL
       - POSTGRES_URL
+      - READY2ORDER_ACCOUNT_TOKEN
       - REDACT_LOGS_TO_CLIENT
       - RUST_BACKTRACE
       - RUST_LOG=${RUST_LOG:-info}

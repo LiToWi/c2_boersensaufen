@@ -29,7 +29,13 @@ export default function Navbar() {
     api.drinks.getPartyOrders,
     currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
-  const basketCount = basketSummary?.itemCount || 0
+  
+  // Calculate total quantity of all items (not finalized)
+  const basketCount = allPartyOrders
+    ? allPartyOrders
+        .filter((item: any) => !item.finalized)
+        .reduce((sum: number, item: any) => sum + item.quantity, 0)
+    : 0
 
   // Function to close mobile menu
   const closeMobileMenu = () => {

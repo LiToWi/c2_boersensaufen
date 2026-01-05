@@ -19,6 +19,11 @@ export default defineSchema({
     passwordHash: v.optional(v.string()),
     createdAt: v.number(), // store as Date.now()
     closedAt: v.optional(v.number()), // store as Date.now() when closed
+    // Ready2Order integration
+    r2oTableId: v.optional(v.string()), // R2O table ID for this party
+    r2oTableCreationStatus: v.optional(v.string()), // 'pending' | 'created' | 'failed'
+    r2oTableCreationError: v.optional(v.string()), // Error message if creation failed
+    r2oTableCreatedAt: v.optional(v.number()), // When R2O table was created
   }),
 
   // track members that joined a party (one record per unique client/browser)
@@ -121,5 +126,35 @@ export default defineSchema({
     quantity: v.number(), // number of units ordered
     impactQuantity: v.number(), // quantity counted for price impact (capped)
     createdAt: v.number(),
+  }),
+
+  // Ready2Order payment tracking
+  r2oOrders: defineTable({
+    partyId: v.id('parties'),
+    orderItems: v.array(v.object({
+      productName: v.string(),
+      quantity: v.number(),
+      pricePerUnit: v.number(),
+    })),
+    r2oTableId: v.string(), // Reference to the R2O table
+    r2oProductIds: v.array(v.string()), // Created product IDs in R2O
+    totalAmount: v.number(), // Total order value
+    submittedAt: v.number(), // When submitted to R2O
+    status: v.string(), // 'pending' | 'submitted' | 'failed' | 'retry'
+    r2oResponse: v.optional(v.any()), // Raw R2O response/status
+    errorMessage: v.optional(v.string()), // Error details if failed
+    retryCount: v.optional(v.number()), // Number of retry attempts
+    lastRetryAt: v.optional(v.number()), // Last retry timestamp
+  }),
+
+  // Map locally created products to R2O
+  r2oProducts: defineTable({
+    partyId: v.id('parties'),
+    productName: v.string(),
+    pricePerUnit: v.number(),
+    r2oProductId: v.string(), // R2O product ID
+    r2oTableId: v.string(), // Which party's table
+    createdAt: v.number(),
+    active: v.boolean(),
   }),
 })
