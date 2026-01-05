@@ -71,7 +71,7 @@ export default defineSchema({
     // optional low bound price
     lowBoundPrice: v.optional(v.number()),
     // capacity/stock for supply-demand modeling (required; backfilled to 50 for legacy docs)
-    capacity: v.number(),
+    capacity: v.optional(v.number()),
     // optional priority for ordering in the UI (higher = show first). Default behavior treats missing as 0.
     priority: v.optional(v.number()),
     // reference to categories table (optional)

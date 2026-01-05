@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
 import React from "react";
 import { ResponsiveContainer } from "recharts";
 import * as Recharts from "recharts";
@@ -15,21 +14,6 @@ import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ChartContainer } from "./ui/chart";
-=======
-import React from 'react'
-import { ChartContainer } from '@/components/ui/chart'
-import * as Recharts from 'recharts'
-import { useLanguage } from '@/contexts/LanguageContext'
-import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import { useParty } from '@/contexts/PartyContext'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ShoppingCart } from 'lucide-react'
-import { toast } from 'sonner'
-import { useSession } from 'next-auth/react'
-import type { Id } from '../../convex/_generated/dataModel'
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
 
 export type Snapshot = { ts: number; price: number };
 
@@ -42,7 +26,6 @@ type Props = {
   showOrderButton?: boolean;
 };
 
-<<<<<<< HEAD
 export default function DrinkDetailCard({
   id,
   name,
@@ -57,15 +40,6 @@ export default function DrinkDetailCard({
   const [isOrdering, setIsOrdering] = React.useState(false);
   const [quantity, setQuantity] = React.useState(1)
   const snapshots = useQuery(api.snapshots.getSnapshotsForProduct, { id: id! });
-=======
-export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, snapshots, showOrderButton = false }: Props) {
-  const { t } = useLanguage()
-  const { currentParty, currentTable } = useParty()
-  const { data: session } = useSession()
-  const orderDrink = useMutation(api.drinks.orderDrink)
-  const [isOrdering, setIsOrdering] = React.useState(false)
-  const [quantity, setQuantity] = React.useState(1)
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
 
   const displayCurrent =
     typeof currentPrice === "number" ? currentPrice : undefined;
@@ -107,11 +81,6 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
       console.error('Order failed:', error)
       // Extract clean error message from Convex error
       let errorMessage = t('order_failed') || 'Failed to add to basket'
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
       if (error?.message) {
         // Check if it's a purchase limit error
         if (error.message.includes('Purchase limit exceeded')) {
@@ -119,30 +88,15 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
           const membersMatch = error.message.match(/\((\d+) members?\)/)
           const limitMatch = error.message.match(/max (\d+)/)
           const currentMatch = error.message.match(/Currently you have: (\d+)/)
-<<<<<<< HEAD
-
-=======
-          
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
           if (membersMatch && limitMatch && currentMatch) {
             const members = membersMatch[1]
             const limit = limitMatch[1]
             const current = currentMatch[1]
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
             const title = t('purchase_limit_exceeded') || 'Purchase limit exceeded'
             const message = (t('purchase_limit_message') || 'Your party ({members} members) can have max {limit} pending items in basket. Currently: {current}')
               .replace('{members}', members)
               .replace('{limit}', limit)
               .replace('{current}', current)
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
             errorMessage = `${title}!\n${message}`
           } else {
             // Fallback: try to extract the clean message
@@ -157,11 +111,6 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
           }
         }
       }
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
       toast.error(errorMessage)
     } finally {
       setIsOrdering(false);
@@ -202,80 +151,12 @@ export default function DrinkDetailCard({ id, name, currentPrice, regularPrice, 
         <div className="bg-white dark:bg-gray-900 text-black dark:text-white rounded-md p-4">
           <div className="flex items-start justify-between">
             <div>
-<<<<<<< HEAD
               <h3 className="text-xl font-semibold">{name}</h3>
               <div className="text-sm text-muted-foreground">
                 {t("current_price")}{" "}
                 {displayCurrent !== undefined
                   ? `${displayCurrent.toFixed(2)} €`
                   : "-"}
-=======
-                <h3 className="text-lg font-medium">{name}</h3>
-            </div>
-            <div className="text-xl font-bold">{currentPrice} €</div>
-        </div>
-        <div className="mt-3">
-            <div className="bg-white dark:bg-gray-900 text-black dark:text-white rounded-md p-4">
-            <div className="flex items-start justify-between">
-                <div>
-                <h3 className="text-xl font-semibold">{name}</h3>
-                <div className="text-sm text-muted-foreground">
-                    {t('current_price')} {displayCurrent !== undefined ? `${displayCurrent.toFixed(2)} €` : '-'}
-                </div>
-                </div>
-                <div className="text-right">
-                {displayRegular !== undefined && (
-                    <div className="text-sm text-muted-foreground">{t('regular_price')} {displayRegular.toFixed(2)} €</div>
-                )}
-                {saving !== undefined && (
-                    <div className={"mt-1 font-mono font-medium " + (saving > 0 ? 'text-green-400' : saving < 0 ? 'text-red-400' : 'text-muted-foreground')}>
-                    {saving > 0
-                        ? `${t('saving') || 'Saving'} ${saving.toFixed(2)} €`
-                        : saving < 0
-                        ? `${t('more_expensive') || 'More expensive'} ${Math.abs(saving).toFixed(2)} €`
-                        : `${t('saving') || 'Saving'} 0.00 €`}
-                    </div>
-                )}
-                </div>
-            </div>
-
-            <div className="mt-4">
-                <ChartContainer id={`drink-${id ?? name}`} config={{ price: { color: '#f59e0b' } }}>
-                <Recharts.LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <Recharts.CartesianGrid strokeDasharray="3 3" />
-                    <Recharts.XAxis dataKey="label" hide />
-                    <Recharts.YAxis allowDecimals={true} />
-                    <Recharts.Tooltip />
-                    <Recharts.Line type="monotone" dataKey="price" stroke="#f59e0b" dot={{ r: 2 }} />
-                </Recharts.LineChart>
-                </ChartContainer>
-            </div>
-
-            {showOrderButton && (
-              <div className="mt-4">
-                <div className="mb-4 flex items-center gap-3">
-                  <label className="text-sm font-medium">{t('quantity') || 'Quantity'}:</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-20 h-10"
-                    disabled={!session || !currentParty || !currentTable}
-                  />
-                </div>
-                <Button 
-                  onClick={handleOrder} 
-                  disabled={!session || !currentParty || !currentTable || isOrdering || quantity < 1}
-                  className="w-full"
-                  size="lg"
-                  title={!session || !currentParty || !currentTable ? (t('please_join_party') || 'Please join a party first') : undefined}
-                >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  {isOrdering ? (t('adding') || 'Adding...') : (t('add_to_basket') || 'Add to Basket')}
-                </Button>
->>>>>>> 3916630 (Purchase Limit + Shopping Basket + Purchasing History)
               </div>
             </div>
             <div className="text-right">
