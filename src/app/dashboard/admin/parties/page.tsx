@@ -1,5 +1,4 @@
 'use client'
-import { partyList } from "@/app/api/admin/parties"
 import {
     Table,
     TableBody,
@@ -10,16 +9,14 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { api } from "convex/_generated/api";
+import { Id } from "convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 
 
 export default function Parties() {
 
-
-
-    partyList();
-
     const data = useQuery(api.parties.getAllParties)
+    console.log(data)
 
     if (data === undefined) {
         return (<div>Loading...</div>)
@@ -29,8 +26,8 @@ export default function Parties() {
         <div>
             <h1 className="text-4xl font-serif">Parties</h1>
 
-            <Table className="">
-                <TableCaption>A list of your recent invoices.</TableCaption>
+            <Table className="caption-top">
+                <TableCaption>Alle Parties</TableCaption>
                 <TableHeader className="text-lg">
                     <TableRow>
                         <TableHead className="w-[100px]">Tisch</TableHead>
@@ -40,9 +37,12 @@ export default function Parties() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.map((party) => (
-                        <PartyRow key={party._id} party={party} />
-                    ))}
+                    {data.map((party: { _id: string, closed: boolean, name: string, tableId: string }) => {
+                        console.log(party)
+                        return (
+                            <PartyRow key={party._id} party={party} />
+                        )
+                    })}
                 </TableBody>
             </Table>
 
@@ -50,16 +50,18 @@ export default function Parties() {
     )
 }
 
-function PartyRow(party: any) {
-    const table = useQuery(api.tables.getTableByID, { tableID: party.tableId })
+function PartyRow({ party }: any) {
+    const table = useQuery(api.tables.getTableByID, { tableID: party.tableId as Id<"tables"> })
+    const sum = useQuery(api.drinks.getPartyOrderSummary, { partyId: party._id as Id<"parties"> })
+
+    console.log(sum)
 
     return (
-
         <TableRow>
             <TableCell>{table?.name}</TableCell>
             <TableCell>{party.name}</TableCell>
-            <TableCell>Credit Card</TableCell>
-            <TableCell className="text-right">$250.00</TableCell>
+            <TableCell className="text-right">{sum?.totalPrice}€</TableCell>
+            <TableCell className="text-right">{}</TableCell>
         </TableRow>
     )
 }
