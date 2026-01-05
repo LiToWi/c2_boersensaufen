@@ -66,7 +66,7 @@ export default function Navbar() {
         {/* Left: Logo */}
   <Link href="/" className="flex items-center text-2xl md:text-4xl font-bold tracking-tight hover:text-blue-600 transition">
           <span className="h-12 w-12 mr-2 relative">
-            <Image src="/logo.svg" alt="Logo" fill className="object-contain invert" />
+            <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
           </span>
           {t('app_title')}
         </Link>
