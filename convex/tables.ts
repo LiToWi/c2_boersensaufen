@@ -58,9 +58,13 @@ export const getTableByName = query({
 export const getTableByID = query({
   args: { tableID: v.id('tables') },
   handler: async(ctx, args) => {
-    return await ctx.db.query('tables')
-      .filter(q => q.eq(q.field('_id'), args.tableID))
-      .unique();
+    const task = await ctx.db.get(args.tableID);
+    
+    if (!task) {
+      return null
+    }
+
+    return task
   }
 })
 
