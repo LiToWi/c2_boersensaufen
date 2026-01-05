@@ -110,6 +110,11 @@ export default function DrinkDetailCard({
       return
     }
 
+    if (quantity < 1) {
+      toast.error(t('quantity_error') || 'Please select at least 1 item')
+      return
+    }
+
     setIsOrdering(true)
     try {
       await orderDrink({
@@ -124,7 +129,6 @@ export default function DrinkDetailCard({
       console.error('Order failed:', error)
       // Extract clean error message from Convex error
       let errorMessage = t('order_failed') || 'Failed to add to basket'
-
       if (error?.message) {
         // Check if it's a purchase limit error
         if (error.message.includes('Purchase limit exceeded')) {
@@ -132,18 +136,15 @@ export default function DrinkDetailCard({
           const membersMatch = error.message.match(/\((\d+) members?\)/)
           const limitMatch = error.message.match(/max (\d+)/)
           const currentMatch = error.message.match(/Currently you have: (\d+)/)
-
           if (membersMatch && limitMatch && currentMatch) {
             const members = membersMatch[1]
             const limit = limitMatch[1]
             const current = currentMatch[1]
-
             const title = t('purchase_limit_exceeded') || 'Purchase limit exceeded'
             const message = (t('purchase_limit_message') || 'Your party ({members} members) can have max {limit} pending items in basket. Currently: {current}')
               .replace('{members}', members)
               .replace('{limit}', limit)
               .replace('{current}', current)
-
             errorMessage = `${title}!\n${message}`
           } else {
             // Fallback: try to extract the clean message
@@ -158,7 +159,6 @@ export default function DrinkDetailCard({
           }
         }
       }
-
       toast.error(errorMessage)
     } finally {
       setIsOrdering(false);

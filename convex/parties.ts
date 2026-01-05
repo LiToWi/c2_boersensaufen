@@ -59,7 +59,7 @@ export const getOpenPartiesByName = query({
 });
 
 export const getAllParties = query({
-    handler: async (ctx, args) => {
+    handler: async (ctx) => {
         const allParties = await ctx.db
             .query("parties")
             .collect();
@@ -70,9 +70,6 @@ export const getAllParties = query({
                 name: p.name,
                 tableId: p.tableId,
                 closed: p.closed,
-                createdAt: p.createdAt,
-                closedAt: p.closedAt,
-                hasPassword: !!p.passwordHash,
             }))
     }
 })

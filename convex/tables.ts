@@ -55,6 +55,19 @@ export const getTableByName = query({
     },
 });
 
+export const getTableByID = query({
+  args: { tableID: v.id('tables') },
+  handler: async(ctx, args) => {
+    const task = await ctx.db.get(args.tableID);
+    
+    if (!task) {
+      return null
+    }
+
+    return task
+  }
+})
+
 // Keep this as a mutation since it modifies/validates data
 export const validateTablePassword = mutation({
     args: {
