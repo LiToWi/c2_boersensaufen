@@ -51,7 +51,6 @@ export const authOptions: AuthOptions = {
         token: { label: "Token", type: "password" },
       },
       async authorize(credentials) {
-        console.log("aonesuhaonteuhsnaoehusnatheoseu");
         if (!credentials?.token) return null;
 
         try {
