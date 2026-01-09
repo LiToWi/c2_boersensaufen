@@ -15,7 +15,7 @@ export default function AdminNavbar() {
     const { t } = useLanguage();
     const pathname = usePathname();
     const basePath = "/dashboard/admin";
-    const dashboardRoot = "/admin";
+    const dashboardRoot = "/dashboard/admin";
 
     const checkActive = (path: string) => {
         if (!pathname) return false;

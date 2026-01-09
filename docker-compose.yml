@@ -10,7 +10,8 @@ services:
       - NODE_ENV=development
       # Point the app container to the PHP microservice by docker-compose service name
       - READY2ORDER_PHP_URL=http://php-ready2order:8090/products
-      # NEXT_PUBLIC_CONVEX_URL is now set in .env.local for HTTPS access
+      # External Convex URL for client-side access via proxy (uses existing convex.campus-cneipe.de subdomain)
+      - NEXT_PUBLIC_CONVEX_URL=https://convex.campus-cneipe.de
       # Internal backend URL for server-side calls
       - CONVEX_SELF_HOSTED_URL=http://backend:3210
     volumes:
