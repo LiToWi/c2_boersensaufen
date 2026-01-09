@@ -101,11 +101,11 @@ export default function DangerZone() {
       const result = await toggleTestMode();
       toast.success(
         result.testMode
-          ? 'Test Mode ENABLED - R2O calls will be skipped'
-          : 'Test Mode DISABLED - R2O calls active'
+          ? t('test_mode_enabled_message') || 'Test Mode ENABLED - R2O calls will be skipped'
+          : t('test_mode_disabled_message') || 'Test Mode DISABLED - R2O calls active'
       );
     } catch (error) {
-      toast.error('Failed to toggle test mode: ' + String(error));
+      toast.error((t('failed_toggle_test_mode') || 'Failed to toggle test mode') + ': ' + String(error));
     }
   };
 

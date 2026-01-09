@@ -5,11 +5,67 @@ import { useParty } from '../contexts/PartyContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { useSession } from 'next-auth/react'
 
 export default function HomeClient() {
   const { currentTable, currentParty, partyName } = useParty()
   const { t } = useLanguage()
+  const { status } = useSession()
   const marketState = useQuery(api.pricingTick.getMarketState)
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false)
+
+  // Attempt auto-login if user has valid stored table but no active session
+  useEffect(() => {
+    if (status !== 'unauthenticated' || autoLoginAttempted) return;
+
+    try {
+      const stored = localStorage.getItem('currentParty');
+      if (!stored) {
+        setAutoLoginAttempted(true);
+        return;
+      }
+
+      const parsed = JSON.parse(stored);
+      const { table } = parsed;
+
+      if (table && typeof table === 'string') {
+        // Check if table still exists by attempting to fetch it
+        const fetchTable = async () => {
+          try {
+            const response = await fetch('/api/auth/check-table', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tableName: table }),
+            });
+
+            const data = await response.json();
+            if (data.exists) {
+              console.log('[HomeClient] Auto-login triggered for table:', table);
+              // Trigger auto-login via NextAuth
+              // The user will need to provide password or token, so we can't fully auto-login
+              // Instead, we'll try to auto-populate the form (handled by login component)
+              // For now, just mark that we attempted
+              setAutoLoginAttempted(true);
+            } else {
+              // Table doesn't exist, clear stored data
+              localStorage.removeItem('currentParty');
+              setAutoLoginAttempted(true);
+            }
+          } catch (error) {
+            console.warn('[HomeClient] Failed to check table existence:', error);
+            setAutoLoginAttempted(true);
+          }
+        };
+
+        fetchTable();
+      } else {
+        setAutoLoginAttempted(true);
+      }
+    } catch (e) {
+      console.warn('[HomeClient] Failed to parse stored party data:', e);
+      setAutoLoginAttempted(true);
+    }
+  }, [status, autoLoginAttempted]);
 
   useEffect(() => {
     console.log('Current Party Info:', {

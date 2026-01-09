@@ -4,17 +4,30 @@ import React, { useEffect, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import DrinkDetailCard from '@/components/DrinkDetailCard'
 import { useParty } from '@/contexts/PartyContext'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 export default function UserDashboardPage() {
     const { t } = useLanguage()
-    const { data: session } = useSession()
+    const { data: session, status } = useSession()
     const { currentParty, currentTable } = useParty()
+    const router = useRouter()
     const [favorites, setFavorites] = useState<Record<string, any>>({})
     const [detail, setDetail] = useState<null | { id: string; name?: string; price?: number; regularPrice?: number }>(null)
+
+    // Check if session is marked as invalid and logout if so
+    useEffect(() => {
+        if (status === 'authenticated') {
+            const isInvalid = (session?.user as any)?.invalid === true;
+            if (isInvalid) {
+                console.warn('[UserDashboard] Session is invalid, logging out');
+                signOut({ redirect: true, callbackUrl: '/' });
+            }
+        }
+    }, [status, session]);
 
     const favoritesKey = React.useMemo(() => {
         const id = currentParty ?? currentTable

@@ -165,8 +165,8 @@ function PartyCard({ party, isExpanded, onToggle }: { party: any, isExpanded: bo
                                 <p className="text-xl font-bold">{summary?.totalPrice?.toFixed(2) || '0.00'}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-400">{t('savings') || 'Savings'} (€)</p>
-                                <p className="text-xl font-bold text-green-400">{summary?.totalSavings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-xs text-gray-400">{t('fees') || 'Fees'} (€)</p>
+                                <p className="text-xl font-bold text-green-400">{summary?.totalFees?.toFixed(2) || '0.00'}</p>
                             </div>
                         </div>
 

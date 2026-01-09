@@ -17,7 +17,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 export type Snapshot = { ts: number; price: number };
 
 type Props = {
-  id?: string;
+  id?: Id<'drinks'> | string;
   name?: string;
   currentPrice?: number;
   regularPrice?: number;
@@ -38,7 +38,12 @@ export default function DrinkDetailCard({
   const orderDrink = useMutation(api.drinks.orderDrink);
   const [isOrdering, setIsOrdering] = React.useState(false);
   const [quantity, setQuantity] = React.useState(1)
-  const snapshots = useQuery(api.snapshots.getSnapshotsForProduct, { id: id! });
+  const drinkId = (typeof id === 'string' ? (id as Id<'drinks'>) : id);
+
+  const snapshots = useQuery(
+    api.snapshots.getSnapshotsForProduct,
+    drinkId ? { id: drinkId } : 'skip'
+  );
 
   const displayCurrent =
     typeof currentPrice === "number" ? currentPrice : undefined;
@@ -63,7 +68,7 @@ export default function DrinkDetailCard({
       };
     }
 
-    const allPrices = [...snapshots.map(s => s.price)];
+    const allPrices = [...snapshots.map((s: any) => s.price)];
     if (displayCurrent !== undefined) allPrices.push(displayCurrent);
     if (displayRegular !== undefined) allPrices.push(displayRegular);
 
@@ -91,8 +96,8 @@ export default function DrinkDetailCard({
 
     return snapshots
       .slice()
-      .sort((a, b) => a.ts - b.ts)
-      .map((s) => ({
+      .sort((a: any, b: any) => a.ts - b.ts)
+      .map((s: any) => ({
         time: s.ts,
         price: s.price,
         label: new Date(s.ts).toLocaleTimeString(),
@@ -100,7 +105,7 @@ export default function DrinkDetailCard({
   }, [snapshots, displayCurrent]);
 
   const handleOrder = async () => {
-    if (!currentParty || !id) {
+    if (!currentParty || !drinkId) {
       toast.error(t("please_join_party") || "Please join a party first");
       return;
     }
@@ -119,7 +124,7 @@ export default function DrinkDetailCard({
     try {
       await orderDrink({
         partyId: currentParty as Id<'parties'>,
-        drinkId: id as Id<'drinks'>,
+        drinkId: drinkId as Id<'drinks'>,
         userId: currentTable || 'unknown',
         quantity: quantity,
       })

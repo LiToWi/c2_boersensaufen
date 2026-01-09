@@ -2,7 +2,7 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
 export const getSnapshotsForProduct = query({
-  args: { id: v.string() },
+  args: { id: v.id("drinks") },
   handler: async (ctx, args) => {
     // Use index to efficiently get snapshots ordered by time
     // Take last 100 snapshots for performance

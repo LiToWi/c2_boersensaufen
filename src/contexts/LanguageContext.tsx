@@ -480,6 +480,10 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     event_countdown_cta: 'See you soon — when the market rules the C2 again!',
     see_you_soon: 'See you at Börsensaufen!',
     market_inactive_message: 'Market is currently stopped or reset. Only countdown is shown.',
+    // Test mode notifications
+    test_mode_enabled_message: 'Test Mode ENABLED - R2O calls will be skipped',
+    test_mode_disabled_message: 'Test Mode DISABLED - R2O calls active',
+    failed_toggle_test_mode: 'Failed to toggle test mode',
   },
 }
 
