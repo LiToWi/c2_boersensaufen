@@ -97,7 +97,7 @@ export default function ConvexDebugPage() {
                 <strong>Troubleshooting:</strong>
                 <ul>
                   {Object.entries(checkResult.troubleshooting).map(([key, value]) => (
-                    <li key={key}>{value}</li>
+                    <li key={key}>{String(value)}</li>
                   ))}
                 </ul>
               </div>

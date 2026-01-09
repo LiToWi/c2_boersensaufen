@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Play, Square, RotateCcw, Clock, Activity } from "lucide-react";
+import { AlertCircle, Play, Square, RotateCcw, Clock, Activity, TestTube } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -22,6 +22,8 @@ export default function DangerZone() {
   const stopMarket = useAction(api.adminActions.stopMarket);
   const resetSystem = useAction(api.adminActions.resetSystem);
   const systemStatus = useQuery(api.adminQueries.getSystemStatus);
+  const testMode = useQuery(api.testMode.getTestMode);
+  const toggleTestMode = useMutation(api.testMode.toggleTestMode);
 
   // Update current time every second for runtime display
   useEffect(() => {
@@ -94,6 +96,19 @@ export default function DangerZone() {
     }
   };
 
+  const handleToggleTestMode = async () => {
+    try {
+      const result = await toggleTestMode();
+      toast.success(
+        result.testMode
+          ? 'Test Mode ENABLED - R2O calls will be skipped'
+          : 'Test Mode DISABLED - R2O calls active'
+      );
+    } catch (error) {
+      toast.error('Failed to toggle test mode: ' + String(error));
+    }
+  };
+
   const formatDuration = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -137,6 +152,45 @@ export default function DangerZone() {
         {t('danger_zone_description') || 'These actions affect the entire system. Use with caution.'}
       </p>
 
+      {/* Test Mode Control */}
+      <Card className={`${testMode ? 'bg-yellow-900/40 border-yellow-500/60' : 'bg-slate-900/80 border-slate-500/40'}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <TestTube className="h-5 w-5" />
+              {t('test_mode') || 'Test Mode'}
+            </span>
+            <Badge variant={testMode ? "default" : "secondary"} className={testMode ? 'bg-yellow-600' : ''}>
+              {testMode ? (t('enabled') || 'ENABLED') : (t('disabled') || 'DISABLED')}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-300 mb-2">
+                {testMode
+                  ? t('test_mode_desc_on') || 'Ready2Order API calls are SKIPPED. Use this to test the app without consequences.'
+                  : t('test_mode_desc_off') || 'Ready2Order integration is ACTIVE. Orders and tables will be created in R2O.'}
+              </p>
+              {testMode && (
+                <p className="text-xs text-yellow-400 font-semibold">
+                  ⚠️ {t('test_mode_warning') || 'No orders will be sent to Ready2Order while test mode is enabled'}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleToggleTestMode}
+              variant={testMode ? "destructive" : "default"}
+              size="lg"
+              className="ml-4"
+            >
+              {testMode ? (t('disable') || 'Disable') : (t('enable') || 'Enable')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* System Status Card */}
       {systemStatus && (
         <Card className="bg-slate-900/80 border-blue-500/40">
@@ -156,6 +210,9 @@ export default function DangerZone() {
                   {t('regime') || 'Regime'}: {systemStatus.marketState.regime}
                 </Badge>
               )}
+              <Badge className={testMode ? 'bg-yellow-600 text-black' : 'bg-slate-700'}>
+                {t('test_mode') || 'Test Mode'}: {testMode ? (t('enabled') || 'ENABLED') : (t('disabled') || 'DISABLED')}
+              </Badge>
             </div>
 
             {systemStatus.marketState && (

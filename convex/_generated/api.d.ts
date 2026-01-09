@@ -29,6 +29,7 @@ import type * as r2oQueries from "../r2oQueries.js";
 import type * as r2oSubmitOrder from "../r2oSubmitOrder.js";
 import type * as snapshots from "../snapshots.js";
 import type * as tables from "../tables.js";
+import type * as testMode from "../testMode.js";
 
 import type {
   ApiFromModules,
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   r2oSubmitOrder: typeof r2oSubmitOrder;
   snapshots: typeof snapshots;
   tables: typeof tables;
+  testMode: typeof testMode;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

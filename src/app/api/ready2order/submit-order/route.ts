@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../../../../convex/_generated/api';
 
 const R2O_API_BASE = 'https://api.ready2order.com/v1';
 const R2O_CATEGORY_NAME = '!C2Börsensaufen';
@@ -179,6 +181,29 @@ export async function POST(request: Request) {
           { error: `Invalid price for ${item.productName}` },
           { status: 400 }
         );
+      }
+    }
+
+    // Check if test mode is enabled (after input validation, before any R2O calls)
+    const convexUrl = process.env.CONVEX_SELF_HOSTED_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (convexUrl) {
+      try {
+        const client = new ConvexHttpClient(convexUrl);
+        const testMode = await client.query(api.testMode.getTestMode);
+        if (testMode) {
+          console.log('[R2O] TEST MODE ENABLED - Skipping R2O order submission');
+          return NextResponse.json({
+            success: true,
+            r2oTableId: r2oTableId || `test-table-${Date.now()}`,
+            r2oProductIds: items.map((_, i) => `test-product-${Date.now()}-${i}`),
+            orderData: { testMode: true, orderId: `test-order-${Date.now()}` },
+            testMode: true,
+            message: 'Test mode: R2O order submission skipped',
+          });
+        }
+      } catch (error) {
+        console.warn('[R2O] Failed to check test mode:', error);
+        // Continue with normal flow if test mode check fails
       }
     }
 

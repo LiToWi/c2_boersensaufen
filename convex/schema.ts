@@ -99,6 +99,7 @@ export default defineSchema({
     // singleton record, always use id "global"
     stateKey: v.string(), // "global"
     active: v.optional(v.boolean()), // whether market is running (pricing ticks enabled), defaults to true
+    testMode: v.optional(v.boolean()), // when true, skip Ready2Order API calls
     regime: v.string(), // "Calm" | "Normal" | "Hype"
     regimeStartedAt: v.number(), // timestamp when current regime started
     lastTickAt: v.number(), // timestamp of last tick execution

@@ -61,7 +61,6 @@ export default function AdminDashboardPage() {
             </p>
           </CardContent>
         </Card>
-
         {/* Orders */}
         <Card className="bg-slate-900/80 border-blue-500/40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">

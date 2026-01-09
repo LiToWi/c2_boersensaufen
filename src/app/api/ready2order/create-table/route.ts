@@ -18,6 +18,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check if test mode is enabled and short-circuit to avoid R2O side effects
+    const convexUrl = process.env.CONVEX_SELF_HOSTED_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (convexUrl) {
+      try {
+        const client = new ConvexHttpClient(convexUrl);
+        const testMode = await client.query(api.testMode.getTestMode);
+        if (testMode) {
+          console.log('[R2O] TEST MODE ENABLED - Skipping R2O table creation');
+          return NextResponse.json({
+            success: true,
+            r2oTableId: `test-${Date.now()}`,
+            testMode: true,
+            message: 'Test mode: R2O table creation skipped',
+          });
+        }
+      } catch (error) {
+        console.warn('[R2O] Failed to check test mode:', error);
+        // If test-mode check fails, continue with normal flow
+      }
+    }
+
     const token = process.env.READY2ORDER_ACCOUNT_TOKEN;
     if (!token) {
       console.error('[R2O] Token not found in environment');
