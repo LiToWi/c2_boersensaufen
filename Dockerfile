@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+# Skip build in docker - we run dev server instead
+# RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]

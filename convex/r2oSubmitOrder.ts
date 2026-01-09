@@ -50,7 +50,7 @@ async function ensureR2OCategory(token: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      name: R2O_CATEGORY_NAME,
+      productgroup_name: R2O_CATEGORY_NAME,
       sortOrder: 999,
     }),
   });
@@ -85,6 +85,7 @@ async function createR2OProduct(
       productgroup_id: categoryId,
       product_type: 2, // Drink type
       product_active: 1,
+      product_vat: 19, // German standard VAT rate (19%)
     }),
   });
 
@@ -105,7 +106,11 @@ async function bookOrderToTable(
   tableId: string,
   items: Array<{ productId: string; quantity: number; unitPrice: number }>
 ): Promise<any> {
-  const response = await fetch(`${R2O_API_BASE}/tables/${tableId}/orders`, {
+  // Try the standard endpoint first
+  let endpoint = `${R2O_API_BASE}/tables/${tableId}/orders`;
+  console.log(`[R2O] Attempting to book order to ${endpoint}`);
+  
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -122,10 +127,19 @@ async function bookOrderToTable(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to book order to table: ${errorText || response.statusText}`);
+    console.error(`[R2O] Booking failed for table ${tableId}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+    });
+    
+    // Return error details for debugging
+    throw new Error(`Failed to book order to table ${tableId} (${response.status}): ${errorText || response.statusText}`);
   }
 
-  return await response.json();
+  const result = await response.json();
+  console.log(`[R2O] Order booked successfully:`, result);
+  return result;
 }
 
 /**
@@ -136,12 +150,19 @@ export const submitOrderToR2O = action({
   args: {
     partyId: v.id('parties'),
     items: v.array(v.object({
+      drinkId: v.id('drinks'),
       productName: v.string(),
       quantity: v.number(),
       pricePerUnit: v.number(),
     })),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    r2oTableId: string;
+    productCount: number;
+    totalAmount: number;
+    r2oOrderId?: string;
+  }> => {
     const token = getR2OToken();
 
     // Validate inputs
@@ -150,6 +171,9 @@ export const submitOrderToR2O = action({
     }
 
     for (const item of args.items) {
+      if (!item.drinkId) {
+        throw new Error('Item missing drinkId');
+      }
       if (!item.productName || item.productName.trim() === '') {
         throw new Error('Product name cannot be empty');
       }
@@ -163,7 +187,7 @@ export const submitOrderToR2O = action({
 
     try {
       // 1. Get party and check R2O table exists
-      const party = await ctx.runQuery(api.parties.getPartyById, { id: args.partyId });
+      const party = await ctx.runQuery(api.parties.getPartyById, { id: args.partyId }) as any;
       
       if (!party) {
         throw new Error('Party not found');
@@ -174,58 +198,99 @@ export const submitOrderToR2O = action({
       }
 
       if (!party.r2oTableId) {
-        throw new Error('Party has no R2O table. Table creation may be pending or failed.');
+        throw new Error('Party has no R2O table. Please create a table first or contact support.');
       }
 
-      const r2oTableId = party.r2oTableId;
+      const r2oTableId = party.r2oTableId as string;
+      console.log(`[R2O] Submitting order to R2O table: ${r2oTableId}`);
 
-      // 2. Ensure category exists
-      const categoryId = await ensureR2OCategory(token);
-
-      // 3. Create products and prepare order items
+      // 2. Look up drink information to get R2O product IDs
       const r2oProductIds: string[] = [];
       const orderItemsForR2O: Array<{ productId: string; quantity: number; unitPrice: number }> = [];
 
       for (const item of args.items) {
         try {
-          // Create product with exact name and price
-          const productId = await createR2OProduct(
-            token,
-            categoryId,
-            item.productName,
-            item.pricePerUnit
-          );
+          // Look up the drink to get its R2O product ID
+          const drink = await ctx.runQuery(api.drinks.getDrinkById, { drinkId: item.drinkId });
+          
+          if (!drink) {
+            throw new Error(`Drink not found: ${item.drinkId}`);
+          }
 
-          r2oProductIds.push(productId);
+          if (!drink.r2oId) {
+            throw new Error(`Drink "${item.productName}" has no R2O product ID. Please contact support.`);
+          }
 
-          // Record product in our DB
-          await ctx.runMutation(internal.r2oMutations.recordR2OProduct, {
-            partyId: args.partyId,
-            productName: item.productName,
-            pricePerUnit: item.pricePerUnit,
-            r2oProductId: productId,
-            r2oTableId,
-          });
+          const r2oProductId = drink.r2oId;
+          r2oProductIds.push(r2oProductId);
 
           orderItemsForR2O.push({
-            productId,
+            productId: r2oProductId,
             quantity: item.quantity,
             unitPrice: item.pricePerUnit,
           });
-        } catch (productError: any) {
-          // If product creation fails, clean up already created products
-          console.error(`Failed to create product ${item.productName}:`, productError);
-          throw new Error(`Failed to create product "${item.productName}": ${productError.message}`);
+
+          console.log(`[R2O] Using existing product "${item.productName}" (ID: ${r2oProductId})`);
+        } catch (lookupError: any) {
+          console.error(`Failed to process item ${item.productName}:`, lookupError);
+          throw new Error(`Failed to process item "${item.productName}": ${lookupError.message}`);
         }
       }
 
-      // 4. Book order to table
-      let r2oResponse;
+      // 4. Create order in R2O using POST /v1/orders endpoint
+      console.log(`[R2O] Creating order in R2O for table ${r2oTableId} with ${orderItemsForR2O.length} items`);
+      
+      let r2oResponse: any = null;
       try {
-        r2oResponse = await bookOrderToTable(token, r2oTableId, orderItemsForR2O);
-      } catch (bookingError: any) {
-        console.error('Failed to book order to table:', bookingError);
-        throw new Error(`Failed to book order: ${bookingError.message}`);
+        // Build the order payload for POST /v1/orders
+        // NOTE: Our prices are brutto (include VAT), but R2O expects netto prices
+        // So we need to calculate net price from gross price
+        // Also need to add 1.5% trading fee to the price
+        const VAT_RATE = 19; // 19% German VAT
+        const VAT_MULTIPLIER = 1 + (VAT_RATE / 100); // 1.19
+        const TRADING_FEE_RATE = 0.01; // 1% trading fee
+        
+        const orderPayload: any = {
+          table_id: parseInt(r2oTableId, 10), // Convert to integer
+          price_base: 'netto', // We're sending net prices, R2O will add VAT
+          items: orderItemsForR2O.map(item => ({
+            product_id: parseInt(item.productId, 10), // R2O expects integer product IDs
+            item_quantity: item.quantity, // Correct field name for quantity
+            // Add 1.5% trading fee to brutto price, then convert to netto
+            item_price: Number(((item.unitPrice * (1 + TRADING_FEE_RATE)) / VAT_MULTIPLIER).toFixed(2)),
+            item_vatRate: VAT_RATE, // German standard VAT rate (19%)
+          })),
+        };
+
+        console.log('[R2O] Order payload:', JSON.stringify(orderPayload, null, 2));
+
+        // POST to /v1/orders to create the order
+        const orderResponse = await fetch(`${R2O_API_BASE}/orders`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderPayload),
+        });
+
+        const responseText = await orderResponse.text();
+        console.log(`[R2O] Order creation response status: ${orderResponse.status}, body: ${responseText}`);
+
+        if (!orderResponse.ok) {
+          console.error(`[R2O] Failed to create order in R2O:`, {
+            status: orderResponse.status,
+            statusText: orderResponse.statusText,
+            error: responseText,
+          });
+          throw new Error(`Failed to create order in R2O (${orderResponse.status}): ${responseText || orderResponse.statusText}`);
+        }
+
+        r2oResponse = responseText ? JSON.parse(responseText) : { success: true };
+        console.log(`[R2O] Order created successfully in R2O:`, r2oResponse);
+      } catch (orderError: any) {
+        console.error('[R2O] Order creation error:', orderError.message);
+        throw new Error(`Order creation failed: ${orderError.message}`);
       }
 
       // 5. Calculate total
@@ -237,7 +302,11 @@ export const submitOrderToR2O = action({
       // 6. Record successful submission
       await ctx.runMutation(internal.r2oMutations.recordR2OOrder, {
         partyId: args.partyId,
-        orderItems: args.items,
+        orderItems: args.items.map(item => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          pricePerUnit: item.pricePerUnit,
+        })),
         r2oTableId,
         r2oProductIds,
         totalAmount,
@@ -268,7 +337,11 @@ export const submitOrderToR2O = action({
         if (party?.r2oTableId) {
           await ctx.runMutation(internal.r2oMutations.recordR2OOrder, {
             partyId: args.partyId,
-            orderItems: args.items,
+            orderItems: args.items.map(item => ({
+              productName: item.productName,
+              quantity: item.quantity,
+              pricePerUnit: item.pricePerUnit,
+            })),
             r2oTableId: party.r2oTableId,
             r2oProductIds: [],
             totalAmount: args.items.reduce((sum, item) => sum + (item.quantity * item.pricePerUnit), 0),

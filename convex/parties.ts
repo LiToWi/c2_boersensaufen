@@ -156,16 +156,8 @@ export const getAllPartiesByTableName = query({
 export const createParty = mutation({
     args: { name: v.string(), tableId: v.id("tables"), password: v.optional(v.string()), creatorId: v.string() },
     handler: async (ctx, args) => {
-        // Block creating a second active party for the same table
-        const existingActive = await ctx.db
-            .query("parties")
-            .filter((q) => q.eq(q.field("tableId"), args.tableId))
-            .filter((q) => q.eq(q.field("closed"), false))
-            .first();
-
-        if (existingActive) {
-            throw new Error("An active party already exists for this table. Close it before creating a new one.");
-        }
+        // Allow multiple active parties for the same table
+        // Membership constraint: users can only join one party at a time (enforced in handleJoinParty)
 
         let passwordHash: string | undefined = undefined;
         if (args.password && args.password.trim() !== '') {
@@ -182,14 +174,9 @@ export const createParty = mutation({
         };
         const id = await ctx.db.insert("parties", party);
         
-        // Schedule R2O table creation asynchronously
-        // Party creation continues even if R2O creation fails
-        console.log('[Party] Scheduling R2O table creation for party:', id, args.name);
-        ctx.scheduler.runAfter(0, internal.r2oCreateTable.createPartyR2OTable, {
-            partyId: id,
-            partyName: args.name,
-        });
-        console.log('[Party] R2O table creation scheduled');
+        // R2O table creation is now handled by frontend via API route
+        // (see src/app/api/ready2order/create-table/route.ts)
+        // This ensures environment variables are accessible
         
         return { ...party, _id: id, hasPassword: !!passwordHash };
     },
@@ -237,5 +224,50 @@ export const closeParty = mutation({
         
         await ctx.db.patch(args.partyId, { closed: true, closedAt: Date.now() });
         return { ...party, closed: true, closedAt: Date.now() };
+    },
+});
+
+/**
+ * Force close a party from admin panel (no validation, just close it)
+ */
+export const adminCloseParty = mutation({
+    args: { partyId: v.id('parties') },
+    handler: async (ctx, args) => {
+        const party = await ctx.db.get(args.partyId);
+        if (!party) {
+            throw new Error("Party not found");
+        }
+        
+        await ctx.db.patch(args.partyId, { closed: true, closedAt: Date.now() });
+        return { success: true };
+    },
+});
+
+/**
+ * Update party with R2O table ID (called from frontend after API creates table)
+ */
+export const updatePartyR2OTableId = mutation({
+    args: {
+        partyId: v.id('parties'),
+        r2oTableId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        console.log('[Convex] updatePartyR2OTableId called with:', { partyId: args.partyId, r2oTableId: args.r2oTableId });
+        const party = await ctx.db.get(args.partyId);
+        if (!party) {
+            console.log('[Convex] Party not found:', args.partyId);
+            throw new Error('Party not found');
+        }
+
+        console.log('[Convex] Updating party with R2O table ID...');
+        await ctx.db.patch(args.partyId, {
+            r2oTableId: args.r2oTableId,
+            r2oTableCreationStatus: 'created',
+            r2oTableCreatedAt: Date.now(),
+            r2oTableCreationError: undefined,
+        });
+
+        console.log('[Convex] Party updated successfully');
+        return { success: true };
     },
 });

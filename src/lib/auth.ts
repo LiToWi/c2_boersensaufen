@@ -26,6 +26,14 @@ export const authOptions: AuthOptions = {
 
           if (!table) return null;
 
+          const isAdmin = table.name?.toLowerCase() === 'admin';
+          if (!isAdmin) {
+            const marketState = await serverConvex.query(api.pricingTick.getMarketState, {} as any);
+            if (!marketState || marketState.active === false) {
+              throw new Error('MARKET_INACTIVE');
+            }
+          }
+
           // Validate password using the mutation
           await serverConvex.mutation(api.tables.validateTablePassword, {
             tableId: table._id,
@@ -61,6 +69,14 @@ export const authOptions: AuthOptions = {
 
           if (!table) return null;
 
+          const isAdmin = table.name?.toLowerCase() === 'admin';
+          if (!isAdmin) {
+            const marketState = await serverConvex.query(api.pricingTick.getMarketState, {} as any);
+            if (!marketState || marketState.active === false) {
+              throw new Error('MARKET_INACTIVE');
+            }
+          }
+
           return {
             id: String(table._id),
             name: table.name,
@@ -76,6 +92,8 @@ export const authOptions: AuthOptions = {
   ],
   session: {
     strategy: "jwt" as const,
+    // Keep sessions alive a long time (1 days)
+    maxAge: 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

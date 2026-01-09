@@ -101,6 +101,11 @@ export const executePricingTick = internalMutation({
       throw new Error('Market state not initialized. Run initializeMarketState first.')
     }
     
+    // Skip tick execution if market is not active
+    if (marketState.active === false) {
+      return { skipped: true, message: 'Market is stopped' }
+    }
+    
     const currentTickId = marketState.tickCount + 1
     
     // Check if regime should transition

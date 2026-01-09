@@ -10,6 +10,16 @@ export const listDrinks = query({
 });
 
 /**
+ * Get a single drink by ID
+ */
+export const getDrinkById = query({
+  args: { drinkId: v.id('drinks') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.drinkId);
+  },
+});
+
+/**
  * Order a drink - creates order item and records for pricing engine
  * Enforces purchase limit: 3x party member count
  */
@@ -143,7 +153,13 @@ export const deleteOrderItem = mutation({
   args: { orderItemId: v.id('orderItems') },
   handler: async (ctx, args) => {
     const orderItem = await ctx.db.get(args.orderItemId);
-    if (orderItem && !orderItem.finalized) {
+    
+    // If the order item doesn't exist, return early (idempotent)
+    if (!orderItem) {
+      return { success: true };
+    }
+    
+    if (!orderItem.finalized) {
       // restore capacity for pending items that are removed/expired
       const drink = await ctx.db.get(orderItem.drinkId);
       const currentCapacity = typeof drink?.capacity === 'number' ? drink.capacity : DEFAULT_CAPACITY;

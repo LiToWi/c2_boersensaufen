@@ -98,10 +98,16 @@ export default defineSchema({
   marketState: defineTable({
     // singleton record, always use id "global"
     stateKey: v.string(), // "global"
+    active: v.optional(v.boolean()), // whether market is running (pricing ticks enabled), defaults to true
     regime: v.string(), // "Calm" | "Normal" | "Hype"
     regimeStartedAt: v.number(), // timestamp when current regime started
     lastTickAt: v.number(), // timestamp of last tick execution
     tickCount: v.number(), // total number of ticks executed
+    currentSessionStartedAt: v.optional(v.number()), // when the current running session started
+    totalRunningTimeMs: v.optional(v.number()), // cumulative running time across all sessions
+    // Legacy fields for migration
+    startedAt: v.optional(v.number()), // deprecated
+    stoppedAt: v.optional(v.number()), // deprecated
     // Markov chain transition probabilities stored as JSON
     regimeTransitionMatrix: v.optional(v.any()),
   }),

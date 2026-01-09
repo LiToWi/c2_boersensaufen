@@ -1,5 +1,5 @@
 "use node";
-import { internalAction } from './_generated/server';
+import { internalAction, action } from './_generated/server';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 
@@ -56,7 +56,21 @@ async function getTableAreaId(areaName: string): Promise<number | null> {
 }
 
 /**
- * Create a table in Ready2Order for a party
+ * PUBLIC: Create a table in Ready2Order for a party
+ * Can be called from the frontend after party creation
+ */
+export const createPartyR2OTablePublic = action({
+  args: {
+    partyId: v.id('parties'),
+    partyName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await createPartyR2OTableImpl(ctx, args);
+  },
+});
+
+/**
+ * INTERNAL: Create a table in Ready2Order for a party
  * Called asynchronously after party creation
  */
 export const createPartyR2OTable = internalAction({
@@ -65,107 +79,136 @@ export const createPartyR2OTable = internalAction({
     partyName: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log('[R2O] Creating table for party:', args.partyName);
-    
-    let token;
-    try {
-      token = getR2OToken();
-    } catch (error) {
-      console.error('[R2O] Failed to get token:', error);
-      throw error;
-    }
-
-    try {
-      // Mark as pending
-      await ctx.runMutation(internal.r2oMutations.markPartyR2OTableCreationPending, {
-        partyId: args.partyId,
-      });
-
-      // Get table area ID
-      const areaId = await getTableAreaId(R2O_AREA_NAME);
-      
-      // Build table creation payload
-      const createTableBody: any = {
-        table_name: args.partyName,
-        table_capacity: 12,
-      };
-      
-      // Only add tableArea_id if we found the area
-      if (areaId !== null) {
-        createTableBody.tableArea_id = areaId;
-      } else {
-        console.warn('[R2O] Creating table without area assignment');
-      }
-
-      // Create table in R2O
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-      const response = await fetch(`${R2O_API_BASE}/tables`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(createTableBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[R2O] API error:', response.status, errorText);
-        throw new Error(
-          `R2O API error (${response.status}): ${errorText || response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      const r2oTableId = data.id || data.table_id || data.tableId;
-
-      if (!r2oTableId) {
-        console.error('[R2O] No table ID in response:', data);
-        throw new Error('R2O response missing table ID');
-      }
-
-      console.log('[R2O] Table created successfully, ID:', r2oTableId);
-
-      // Update party with R2O table ID
-      await ctx.runMutation(internal.r2oMutations.updatePartyR2OTableId, {
-        partyId: args.partyId,
-        r2oTableId: String(r2oTableId),
-      });
-
-      return {
-        success: true,
-        r2oTableId: String(r2oTableId),
-      };
-    } catch (error: any) {
-      const errorMessage = error?.message || String(error);
-      
-      // Log error for debugging
-      console.error('[R2O] Failed to create R2O table for party:', {
-        partyId: args.partyId,
-        partyName: args.partyName,
-        error: errorMessage,
-        stack: error?.stack,
-      });
-
-      // Mark creation as failed
-      await ctx.runMutation(internal.r2oMutations.markPartyR2OTableCreationFailed, {
-        partyId: args.partyId,
-        errorMessage,
-      });
-
-      // Don't throw - allow party to continue working locally
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
+    return await createPartyR2OTableImpl(ctx, args);
   },
 });
+
+/**
+ * Shared implementation for creating R2O table
+ */
+async function createPartyR2OTableImpl(ctx: any, args: { partyId: any; partyName: string }) {
+  console.log('[R2O] Creating table for party:', args.partyName);
+  
+  let token;
+  try {
+    token = getR2OToken();
+  } catch (error) {
+    console.error('[R2O] Failed to get token:', error);
+    throw error;
+  }
+
+  try {
+    // Mark as pending
+    await ctx.runMutation(internal.r2oMutations.markPartyR2OTableCreationPending, {
+      partyId: args.partyId,
+    });
+
+    // Fetch party to get tableId
+    const party = await ctx.runQuery(internal.r2oQueries.getPartyForR2O, {
+      partyId: args.partyId,
+    });
+
+    if (!party) {
+      throw new Error('Party not found');
+    }
+
+    // Fetch table name from the tables collection
+    let tableName = '';
+    if (party.tableId) {
+      const table = await ctx.runQuery(internal.r2oQueries.getTableForR2O, {
+        tableId: party.tableId,
+      });
+      tableName = table?.name || '';
+    }
+
+    // Format R2O table name as <tableName>-<partyName>
+    const r2oTableName = tableName ? `${tableName}-${args.partyName}` : args.partyName;
+    console.log('[R2O] Formatted table name:', r2oTableName);
+
+    // Get table area ID
+    const areaId = await getTableAreaId(R2O_AREA_NAME);
+    
+    // Build table creation payload
+    const createTableBody: any = {
+      table_name: r2oTableName,
+      table_capacity: 12,
+    };
+    
+    // Only add tableArea_id if we found the area
+    if (areaId !== null) {
+      createTableBody.tableArea_id = areaId;
+    } else {
+      console.warn('[R2O] Creating table without area assignment');
+    }
+
+    // Create table in R2O
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    const response = await fetch(`${R2O_API_BASE}/tables`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(createTableBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[R2O] API error:', response.status, errorText);
+      throw new Error(
+        `R2O API error (${response.status}): ${errorText || response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    const r2oTableId = data.id || data.table_id || data.tableId;
+
+    if (!r2oTableId) {
+      console.error('[R2O] No table ID in response:', data);
+      throw new Error('R2O response missing table ID');
+    }
+
+    console.log('[R2O] Table created successfully, ID:', r2oTableId);
+
+    // Update party with R2O table ID
+    await ctx.runMutation(internal.r2oMutations.updatePartyR2OTableId, {
+      partyId: args.partyId,
+      r2oTableId: String(r2oTableId),
+    });
+
+    return {
+      success: true,
+      r2oTableId: String(r2oTableId),
+    };
+  } catch (error: any) {
+    const errorMessage = error?.message || String(error);
+    
+    // Log error for debugging
+    console.error('[R2O] Failed to create R2O table for party:', {
+      partyId: args.partyId,
+      partyName: args.partyName,
+      error: errorMessage,
+      stack: error?.stack,
+    });
+
+    // Mark creation as failed
+    await ctx.runMutation(internal.r2oMutations.markPartyR2OTableCreationFailed, {
+      partyId: args.partyId,
+      errorMessage,
+    });
+
+    // Don't throw - allow party to continue working locally
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
 
 /**
  * Retry R2O table creation for a party (can be called manually from admin)
@@ -185,12 +228,33 @@ export const retryPartyR2OTableCreation = internalAction({
         partyId: args.partyId,
       });
 
+      // Fetch party to get tableId
+      const party = await ctx.runQuery(internal.r2oQueries.getPartyForR2O, {
+        partyId: args.partyId,
+      });
+
+      if (!party) {
+        throw new Error('Party not found');
+      }
+
+      // Fetch table name from the tables collection
+      let tableName = '';
+      if (party.tableId) {
+        const table = await ctx.runQuery(internal.r2oQueries.getTableForR2O, {
+          tableId: party.tableId,
+        });
+        tableName = table?.name || '';
+      }
+
+      // Format R2O table name as <tableName>-<partyName>
+      const r2oTableName = tableName ? `${tableName}-${args.partyName}` : args.partyName;
+
       // Get table area ID
       const areaId = await getTableAreaId(R2O_AREA_NAME);
       
       // Build table creation payload
       const createTableBody: any = {
-        table_name: args.partyName,
+        table_name: r2oTableName,
         table_capacity: 12,
       };
       

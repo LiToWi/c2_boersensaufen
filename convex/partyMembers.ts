@@ -45,6 +45,24 @@ export const leaveMember = mutation({
   },
 });
 
+// Kick a member by ID (for admin panel)
+export const kickMember = mutation({
+  args: { memberId: v.id("partyMembers") },
+  handler: async (ctx, args) => {
+    const member = await ctx.db.get(args.memberId);
+    if (!member) {
+      throw new Error("Member not found");
+    }
+    
+    if (member.leftAt !== undefined && member.leftAt !== null) {
+      throw new Error("Member already left the party");
+    }
+
+    await ctx.db.patch(args.memberId, { leftAt: Date.now() });
+    return { success: true };
+  },
+});
+
 // Given an array of party ids, return counts per party
 export const countMembersForParties = query({
   args: { partyIds: v.array(v.id("parties")) },
@@ -81,5 +99,26 @@ export const getPartyMemberCount = query({
       (r) => String(r.partyId) === String(args.partyId) && (r.leftAt === undefined || r.leftAt === null)
     );
     return activeMembers.length;
+  },
+});
+
+// Get all members for a party (admin query)
+export const getPartyMembers = query({
+  args: { partyId: v.id("parties") },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("partyMembers").collect();
+    const members = all.filter(
+      (r) => String(r.partyId) === String(args.partyId) && (r.leftAt === undefined || r.leftAt === null)
+    );
+    return members.sort((a, b) => b.joinedAt - a.joinedAt);
+  },
+});
+
+// Get all-time members for a party (including left members - for admin stats)
+export const getAllTimePartyMembers = query({
+  args: { partyId: v.id("parties") },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("partyMembers").collect();
+    return all.filter((r) => String(r.partyId) === String(args.partyId)).sort((a, b) => b.joinedAt - a.joinedAt);
   },
 });

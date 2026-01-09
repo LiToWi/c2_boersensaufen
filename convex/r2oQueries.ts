@@ -1,4 +1,4 @@
-import { query } from './_generated/server';
+import { query, internalQuery } from './_generated/server';
 import { v } from 'convex/values';
 
 /**
@@ -98,5 +98,25 @@ export const getPartyR2OProducts = query({
       .collect();
 
     return products.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/**
+ * Internal query to get party for R2O operations
+ */
+export const getPartyForR2O = internalQuery({
+  args: { partyId: v.id('parties') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.partyId);
+  },
+});
+
+/**
+ * Internal query to get table for R2O operations
+ */
+export const getTableForR2O = internalQuery({
+  args: { tableId: v.id('tables') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.tableId);
   },
 });

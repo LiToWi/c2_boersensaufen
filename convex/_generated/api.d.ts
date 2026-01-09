@@ -11,6 +11,9 @@
 import type * as actions_backfillCapacity from "../actions/backfillCapacity.js";
 import type * as actions_removeExcludedReady2Order from "../actions/removeExcludedReady2Order.js";
 import type * as actions_syncReady2Order from "../actions/syncReady2Order.js";
+import type * as adminActions from "../adminActions.js";
+import type * as adminMutations from "../adminMutations.js";
+import type * as adminQueries from "../adminQueries.js";
 import type * as categories from "../categories.js";
 import type * as crons from "../crons.js";
 import type * as drinks from "../drinks.js";
@@ -45,6 +48,9 @@ declare const fullApi: ApiFromModules<{
   "actions/backfillCapacity": typeof actions_backfillCapacity;
   "actions/removeExcludedReady2Order": typeof actions_removeExcludedReady2Order;
   "actions/syncReady2Order": typeof actions_syncReady2Order;
+  adminActions: typeof adminActions;
+  adminMutations: typeof adminMutations;
+  adminQueries: typeof adminQueries;
   categories: typeof categories;
   crons: typeof crons;
   drinks: typeof drinks;

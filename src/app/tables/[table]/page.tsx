@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -31,6 +32,15 @@ export default function TablePage() {
   const [memberKey, setMemberKey] = useState<string | null>(null);
   const createMember = useMutation(api.partyMembers.createMember);
   const leaveMember = useMutation(api.partyMembers.leaveMember);
+  const createParty = useMutation(api.parties.createParty);
+  const updateR2OTableId = useMutation(api.parties.updatePartyR2OTableId);
+  
+  // Monitor current party status to detect if it's been closed/deleted
+  const currentPartyStatus = useQuery(
+    api.parties.getPartyById,
+    currentParty && currentParty !== "" ? { id: currentParty as any } : "skip"
+  );
+  
   const getPartyOrderSummary = useQuery(
     api.drinks.getPartyOrderSummary,
     currentParty && currentParty !== "" ? { partyId: currentParty as any } : "skip"
@@ -72,7 +82,6 @@ export default function TablePage() {
   const loading = !table || !parties;
 
   // Mutations for creating and closing parties
-  const createParty = useMutation(api.parties.createParty);
   const validatePartyPassword = useMutation(api.parties.validatePartyPassword);
   const closeParty = useMutation(api.parties.closeParty);
 
@@ -95,6 +104,29 @@ export default function TablePage() {
 
     autoRejoin();
   }, [memberKey, currentParty, currentTable, tableName, createMember]);
+
+  // Monitor if current party is closed/deleted and kick user out
+  useEffect(() => {
+    if (!currentParty || !memberKey) return;
+    
+    // Skip if party status is still loading (undefined)
+    if (currentPartyStatus === undefined) return;
+    
+    // If party no longer exists (null) or has been closed
+    if (currentPartyStatus === null || currentPartyStatus?.closed) {
+      console.log('Current party is closed or deleted, kicking user out');
+      
+      // Clear party context immediately
+      clearCurrentParty();
+      
+      // Try to leave member on backend (fire and forget - party might already be deleted)
+      if (memberKey && currentParty) {
+        leaveMember({ partyId: currentParty as any, memberKey }).catch((err) => {
+          console.log('Leave member failed (party might be deleted):', err);
+        });
+      }
+    }
+  }, [currentPartyStatus, currentParty, memberKey, leaveMember, clearCurrentParty]);
 
   async function handleCreateParty(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -122,6 +154,46 @@ export default function TablePage() {
 
       setPartyName('');
       setPartyPassword('');
+      
+      // Trigger R2O table creation via API route (has access to env vars)
+      // Wait for it to complete and update party BEFORE joining
+      try {
+        console.log('[R2O] About to call create-table API...');
+        const res = await fetch('/api/ready2order/create-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ partyName: newParty.name, tableId: table._id }),
+        });
+        console.log('[R2O] create-table API returned, status:', res.status);
+        
+        const result = await res.json();
+        console.log('[R2O] API response:', { ok: res.ok, success: result.success, tableId: result.r2oTableId });
+        if (res.ok && result.success) {
+          console.log('[R2O] Table created with ID:', result.r2oTableId);
+          console.log('[R2O] Party ID to update:', newParty._id);
+          console.log('[R2O] updateR2OTableId function available:', typeof updateR2OTableId);
+          
+          // Update party with R2O table ID - wait for completion
+          try {
+            console.log('[R2O] Calling updateR2OTableId mutation...');
+            const updateResult = await updateR2OTableId({
+              partyId: newParty._id as Id<'parties'>,
+              r2oTableId: result.r2oTableId,
+            });
+            console.log('[R2O] Mutation completed successfully:', updateResult);
+          } catch (mutationError) {
+            console.error('[R2O] Mutation failed:', mutationError);
+            // Don't block party creation if R2O update fails, but log it
+            alert(t('r2o_setup_warning') || 'Warning: R2O table setup encountered an issue. Payment processing may not work.');
+          }
+        } else {
+          console.error('[R2O] API returned error or not successful:', result);
+          alert(t('r2o_creation_failed') || 'Warning: R2O table creation failed. You can still order but payment setup will not work.');
+        }
+      } catch (error) {
+        console.error('[R2O] Network error or other error:', error);
+        alert(t('r2o_network_error') || 'Warning: Could not connect to R2O. Payment processing may not work.');
+      }
       
       // Automatically join the newly created party
       if (tableName && newParty) {
@@ -202,6 +274,16 @@ export default function TablePage() {
       if (!ok) {
         alert(t('incorrect_password'))
         return
+      }
+    }
+
+    // If user is already in a different party, leave it first
+    if (currentParty && currentParty !== party._id && memberKey) {
+      try {
+        await leaveMember({ partyId: currentParty as any, memberKey });
+        console.log('Left previous party:', currentParty);
+      } catch (err) {
+        console.error('Failed to leave previous party:', err);
       }
     }
 

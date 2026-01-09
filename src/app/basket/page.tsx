@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery, useMutation, useConvex } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useParty } from '@/contexts/PartyContext'
@@ -15,11 +15,44 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 
 export default function BasketPage() {
+  // All hooks MUST be called unconditionally at the top
   const { t } = useLanguage()
   const router = useRouter()
   const { data: session, status } = useSession()
   const { currentParty } = useParty()
+  const convex = useConvex()
+  const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set())
+  const [isFinalizing, setIsFinalizing] = useState(false)
+  const [, forceUpdate] = useState(0)
+  const [retryCount, setRetryCount] = useState(0)
+  
+  // Always call queries (unconditionally)
+  const orderItems = useQuery(
+    api.drinks.getPartyOrders,
+    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+  )
+  const summary = useQuery(
+    api.drinks.getPartyOrderSummary,
+    currentParty ? { partyId: currentParty as Id<'parties'> } : "skip"
+  )
+  const party = useQuery(
+    api.parties.getPartyById,
+    currentParty ? { id: currentParty as Id<'parties'> } : "skip"
+  )
+  const deleteOrderItem = useMutation(api.drinks.deleteOrderItem)
+  const finalizeOrders = useMutation(api.drinks.finalizePartyOrders)
+
   const cardClass = "bg-slate-900/80 border border-blue-500/40 text-white shadow-lg backdrop-blur"
+
+  // Retry fetching party data if r2oTableId is missing
+  useEffect(() => {
+    if (party && !party.r2oTableId && retryCount < 10) {
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1)
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [retryCount, party?.r2oTableId])
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -29,22 +62,13 @@ export default function BasketPage() {
     }
   }, [session, status, router])
 
-  // Show blank page while loading
-  if (status === 'loading') return null;
-  if (!session) return null;
-
-  const orderItems = useQuery(
-    api.drinks.getPartyOrders,
-    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
-  )
-  const summary = useQuery(
-    api.drinks.getPartyOrderSummary,
-    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
-  )
-  const deleteOrderItem = useMutation(api.drinks.deleteOrderItem)
-  const finalizeOrders = useMutation(api.drinks.finalizePartyOrders)
-  const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set())
-  const [isFinalizing, setIsFinalizing] = useState(false)
+  // Update countdown every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(n => n + 1) // Functional update doesn't depend on current value
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Check for expired items and auto-delete them (only non-finalized)
   useEffect(() => {
@@ -52,18 +76,21 @@ export default function BasketPage() {
 
     const now = Date.now()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expiredItems = orderItems.filter((item: any) => {
+    const expiredItems = (orderItems as any[]).filter((item: any) => {
       if (item.finalized) return false // Don't delete finalized items
       const age = now - item.createdAt
       return age > 60000 // 60 seconds
     })
 
     // Auto-delete expired items
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expiredItems.forEach((item: any) => {
       deleteOrderItem({ orderItemId: item._id })
     })
   }, [orderItems, deleteOrderItem])
+
+  // Show blank page while loading
+  if (status === 'loading') return null;
+  if (!session) return null;
 
   const handleDeleteItem = async (itemId: Id<'orderItems'>) => {
     setDeletingItems(prev => new Set(prev).add(itemId))
@@ -87,19 +114,47 @@ export default function BasketPage() {
   }
 
   const handleFinalizeOrders = async () => {
-    if (!currentParty) return
+    if (!currentParty) {
+      toast.error('Party not found')
+      return
+    }
+    
+    if (!party?.r2oTableId) {
+      toast.error('R2O table not created yet. The table creation may still be in progress. Please wait a moment and try again.')
+      return
+    }
     
     setIsFinalizing(true)
     try {
+      // Collect pending items BEFORE finalizing (so we have the data for R2O)
+      const pendingItems = orderItems?.filter(item => !item.finalized) || []
+      
+      if (pendingItems.length === 0) {
+        toast.error(t('no_items_to_finalize') || 'No items to submit')
+        setIsFinalizing(false)
+        return
+      }
+      
+      // Prepare items for R2O submission
+      const r2oItems = pendingItems.map((item) => ({
+        productName: item.drinkName || `Drink ${item.drinkId}`,
+        quantity: item.quantity,
+        pricePerUnit: item.priceAtOrder,
+      }))
+      
       // First finalize the orders in Convex
       await finalizeOrders({ partyId: currentParty as Id<'parties'> })
       
-      // Then submit to Ready2Order
+      // Then submit to Ready2Order via API route (which has env var access)
       try {
         const response = await fetch('/api/ready2order/submit-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ partyId: currentParty }),
+          body: JSON.stringify({ 
+            partyId: currentParty,
+            r2oTableId: party.r2oTableId,
+            items: r2oItems,
+          }),
         })
         
         const result = await response.json()
@@ -121,16 +176,6 @@ export default function BasketPage() {
       setIsFinalizing(false)
     }
   }
-
-  const [, forceUpdate] = useState(0)
-  
-  // Update countdown every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      forceUpdate(n => n + 1)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
 
   if (!currentParty) {
     return (

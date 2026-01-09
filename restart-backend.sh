@@ -37,8 +37,8 @@ cp .env.local .env.local.backup
 
 # Update the admin key in .env.local
 if grep -q "CONVEX_SELF_HOSTED_ADMIN_KEY=" .env.local; then
-    # Replace existing key
-    sed -i "s|CONVEX_SELF_HOSTED_ADMIN_KEY=.*|CONVEX_SELF_HOSTED_ADMIN_KEY='${NEW_ADMIN_KEY}'|" .env.local
+    # Replace existing key (using # as delimiter since the key contains |)
+    sed -i "s#CONVEX_SELF_HOSTED_ADMIN_KEY=.*#CONVEX_SELF_HOSTED_ADMIN_KEY='${NEW_ADMIN_KEY}'#" .env.local
     echo "✅ Admin key updated in .env.local"
 else
     # Add key if it doesn't exist
