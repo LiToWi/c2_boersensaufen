@@ -13,10 +13,11 @@ function normalizeGroupName(raw: any) {
 
 // Internal mutation to upsert a category by name and return its id
 export const upsertCategory = internalMutation({
-  args: { name: v.string(), r2oGroupId: v.optional(v.string()) },
+  args: { name: v.string(), r2oGroupId: v.optional(v.string()), priority: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const name = args.name;
     const groupId = args.r2oGroupId;
+    const incomingPriority = args.priority;
 
     // Centralized normalization: if the normalized name should be merged
     // (e.g. Säfte & Schorlen), prefer name-based upsert so multiple
@@ -29,8 +30,14 @@ export const upsertCategory = internalMutation({
       const existingById = await ctx.db.query('categories')
         .filter((q) => q.eq(q.field('r2oGroupId'), groupId))
         .unique();
-      if (existingById) return existingById._id;
-      const id = await ctx.db.insert('categories', { name, r2oGroupId: groupId });
+      if (existingById) {
+        // Preserve existing priority; only set if missing and incoming provided
+        if (existingById.priority === undefined && incomingPriority !== undefined) {
+          await ctx.db.patch(existingById._id, { priority: incomingPriority });
+        }
+        return existingById._id;
+      }
+      const id = await ctx.db.insert('categories', { name, r2oGroupId: groupId, priority: incomingPriority });
       return id;
     }
 
@@ -38,8 +45,13 @@ export const upsertCategory = internalMutation({
     const existing = await ctx.db.query('categories')
       .filter((q) => q.eq(q.field('name'), normalized))
       .unique();
-    if (existing) return existing._id;
-    const id = await ctx.db.insert('categories', { name: normalized, r2oGroupId: mergeByName ? undefined : groupId });
+    if (existing) {
+      if (existing.priority === undefined && incomingPriority !== undefined) {
+        await ctx.db.patch(existing._id, { priority: incomingPriority });
+      }
+      return existing._id;
+    }
+    const id = await ctx.db.insert('categories', { name: normalized, r2oGroupId: mergeByName ? undefined : groupId, priority: incomingPriority });
     return id;
   },
 });
@@ -61,13 +73,19 @@ export const upsertDrink = internalMutation({
       ? doc.capacity
       : (existing?.capacity ?? DEFAULT_CAPACITY);
 
-    const docWithCapacity = { ...doc, capacity };
+    // Preserve priority from existing drink (keep user's manual ordering)
+    const priority = existing?.priority;
+
+    const docWithCapacityAndPriority = { ...doc, capacity };
+    if (priority !== undefined) {
+      (docWithCapacityAndPriority as any).priority = priority;
+    }
 
     if (existing) {
-      await ctx.db.patch(existing._id, docWithCapacity);
+      await ctx.db.patch(existing._id, docWithCapacityAndPriority);
       return existing._id;
     } else {
-      const id = await ctx.db.insert('drinks', docWithCapacity);
+      const id = await ctx.db.insert('drinks', docWithCapacityAndPriority);
       return id;
     }
   },

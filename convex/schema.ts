@@ -50,9 +50,14 @@ export default defineSchema({
     regularPriceAtOrder: v.optional(v.number()), // original/regular price for savings calculation
     feePaid: v.number(), // 1.5% trading fee on order value
     createdAt: v.number(),
+    expiresAt: v.optional(v.number()), // timestamp when item expires (createdAt + 60s)
     finalized: v.optional(v.boolean()), // whether order was finalized/submitted
     finalizedAt: v.optional(v.number()), // when it was finalized
-  }),
+    barStatus: v.optional(v.string()), // 'pending' | 'in_progress' | 'completed'
+    barStatusUpdatedAt: v.optional(v.number()), // when bar status was last changed
+  })
+    .index('by_party', ['partyId'])
+    .index('by_expires', ['expiresAt', 'finalized']), // Efficient expiry lookup
 
   // price snapshots table to keep historic prices
   priceSnapshots: defineTable({
@@ -92,6 +97,8 @@ export default defineSchema({
     name: v.string(),
     // external Ready2Order productgroup id (optional) to uniquely identify groups
     r2oGroupId: v.optional(v.string()),
+    // optional priority for ordering categories (higher = first)
+    priority: v.optional(v.number()),
   }),
 
   // Market state for pricing engine
@@ -164,4 +171,31 @@ export default defineSchema({
     createdAt: v.number(),
     active: v.boolean(),
   }),
+
+  // Broadcast notifications from admin to all clients
+  notifications: defineTable({
+    title: v.optional(v.union(
+      v.string(), // legacy format
+      v.object({
+        de: v.string(),
+        en: v.string(),
+      })
+    )),
+    message: v.union(
+      v.string(), // legacy format
+      v.object({
+        de: v.string(),
+        en: v.string(),
+      })
+    ),
+    severity: v.optional(v.string()), // info | success | warning | danger
+    createdAt: v.number(), // Date.now()
+  }).index('by_created_at', ['createdAt']),
+
+  // App-wide settings (key-value)
+  settings: defineTable({
+    key: v.string(), // e.g., 'tradingFeeRate', 'pricingConfig'
+    value: v.any(),
+    updatedAt: v.number(),
+  }).index('by_key', ['key']),
 })

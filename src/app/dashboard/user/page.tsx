@@ -145,13 +145,13 @@ export default function UserDashboardPage() {
             {detail && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/60" onClick={closeDetail} />
-                    <div className="relative z-10 w-[min(900px,95%)] bg-white text-black rounded-lg p-6 shadow-xl">
+                    <div className="relative z-10 w-[min(900px,95%)] bg-gray-900 text-white rounded-lg p-6 shadow-xl">
                         <div className="flex justify-between items-start">
                             <button
                                 onClick={closeDetail}
                                 aria-label={t('close') ?? 'Close'}
                                 title={t('close') ?? 'Close'}
-                                className="absolute left-4 top-4 text-gray-600 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-shadow"
+                                className="absolute left-4 top-4 text-gray-300 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition-shadow"
                             >
                                 ×
                             </button>
@@ -164,16 +164,6 @@ export default function UserDashboardPage() {
                                 regularPrice={detail?.regularPrice}
                                 showOrderButton={true}
                             />
-                        </div>
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="font-medium">{t('info')}</h4>
-                                <p className="text-sm text-muted-foreground">{t('info_text')}</p>
-                            </div>
-                            <div>
-                                <h4 className="font-medium">{t('history')}</h4>
-                                <p className="text-sm text-muted-foreground">{t('history_text')}</p>
-                            </div>
                         </div>
                     </div>
                 </div>

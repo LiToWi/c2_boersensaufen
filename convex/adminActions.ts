@@ -26,26 +26,33 @@ export const stopMarket = action({
 
 /**
  * Reset everything: parties, orders, orderItems, drink pricing state, reset market state
+ * Also re-syncs Ready2Order products to refresh the drink catalog
  * Runs cleanup in background via scheduler to avoid timeouts
  */
 export const resetSystem = action({
   args: {},
   handler: async (ctx) => {
+    // Stop market immediately to halt pricing ticks and snapshot creation during cleanup
+    await ctx.runMutation(internal.adminMutations.setMarketActive, { active: false });
+
     // Schedule all cleanup tasks to run in background
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearOrderItems, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearOrders, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearPartyMembers, {});
-    await ctx.scheduler.runAfter(0, internal.adminMutations.clearR2OData, {});
+    await ctx.scheduler.runAfter(0, internal.adminMutations.clearR2OData, {}); // Sets drinks to inactive
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearParties, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearPriceData, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearDrinkMarketState, {});
     
-    // Schedule market to be reset to stopped state after cleanup
-    await ctx.scheduler.runAfter(5000, internal.adminMutations.initializeMarketState, { active: false });
+    // After cleanup, re-sync Ready2Order (waits 3 seconds for cleanup to finish)
+    await ctx.scheduler.runAfter(3000, internal.actions.syncReady2Order.syncReady2Order, { dryRun: false, sampleSize: 10 });
+    
+    // Schedule market to be reset to stopped state after sync completes
+    await ctx.scheduler.runAfter(8000, internal.adminMutations.initializeMarketState, { active: false });
     
     return { 
       success: true, 
-      message: 'System reset started - cleanup running in background (may take 30-60 seconds). Market will be in stopped state.' 
+      message: 'System reset started - cleanup running and Ready2Order products will be re-synced (may take 30-60 seconds). Market will be in stopped state.' 
     };
   },
 });

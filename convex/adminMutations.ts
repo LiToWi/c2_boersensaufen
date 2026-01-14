@@ -106,11 +106,13 @@ export const clearPartyMembers = internalMutation({
 });
 
 /**
- * Delete R2O orders and products - deletes ALL records
+ * Clear R2O orders and set all drinks to inactive (don't delete to preserve priorities)
+ * The sync action will then repull from Ready2Order and reactivate drinks
  */
 export const clearR2OData = internalMutation({
   args: {},
   handler: async (ctx) => {
+    // Delete all R2O orders
     let orders = await ctx.db.query('r2oOrders').take(100);
     while (orders.length > 0) {
       for (const order of orders) {
@@ -119,12 +121,13 @@ export const clearR2OData = internalMutation({
       orders = await ctx.db.query('r2oOrders').take(100);
     }
     
-    let products = await ctx.db.query('r2oProducts').take(100);
-    while (products.length > 0) {
-      for (const product of products) {
-        await ctx.db.delete(product._id);
+    // Set all drinks to inactive (preserve priorities and data)
+    let drinks = await ctx.db.query('drinks').take(100);
+    while (drinks.length > 0) {
+      for (const drink of drinks) {
+        await ctx.db.patch(drink._id, { active: false });
       }
-      products = await ctx.db.query('r2oProducts').take(100);
+      drinks = await ctx.db.query('drinks').take(100);
     }
   },
 });

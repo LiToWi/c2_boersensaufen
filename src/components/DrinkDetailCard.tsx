@@ -14,6 +14,16 @@ import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
 
+const isValidInteger = (val: string): boolean => {
+  if (val === '') return true;
+  return /^\d+$/.test(val);
+};
+
+const noSpinnerStyle: React.CSSProperties = {
+  WebkitAppearance: 'none',
+  MozAppearance: 'textfield',
+};
+
 export type Snapshot = { ts: number; price: number };
 
 type Props = {
@@ -40,15 +50,38 @@ export default function DrinkDetailCard({
   const [quantity, setQuantity] = React.useState(1)
   const drinkId = (typeof id === 'string' ? (id as Id<'drinks'>) : id);
 
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      #quantity::-webkit-outer-spin-button,
+      #quantity::-webkit-inner-spin-button {
+        -webkit-appearance: none !important;
+        display: none !important;
+        margin: 0 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
+  // Query the drink to get real-time price updates from the database
+  const drink = useQuery(
+    api.drinks.getDrinkById,
+    drinkId ? { drinkId: drinkId } : 'skip'
+  );
+
   const snapshots = useQuery(
     api.snapshots.getSnapshotsForProduct,
     drinkId ? { id: drinkId } : 'skip'
   );
 
+  // Use database values if available, otherwise fall back to props
   const displayCurrent =
-    typeof currentPrice === "number" ? currentPrice : undefined;
+    drink?.currentPrice !== undefined ? drink.currentPrice : 
+    (typeof currentPrice === "number" ? currentPrice : undefined);
   const displayRegular =
-    typeof regularPrice === "number" ? regularPrice : undefined;
+    drink?.regularPrice !== undefined ? drink.regularPrice :
+    (typeof regularPrice === "number" ? regularPrice : undefined);
 
   const saving =
     displayRegular !== undefined && displayCurrent !== undefined
@@ -172,14 +205,8 @@ export default function DrinkDetailCard({
 
   return (
     <div className="bg-gray-800/60 p-4 rounded-lg border border-gray-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">{name}</h3>
-        </div>
-        <div className="text-xl font-bold">{currentPrice?.toFixed(2)} €</div>
-      </div>
       <div className="mt-3">
-        <div className="bg-white dark:bg-gray-900 text-black dark:text-white rounded-md p-4">
+        <div className="bg-gray-900 text-white rounded-md p-4">
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xl font-semibold">{name}</h3>
@@ -294,11 +321,15 @@ export default function DrinkDetailCard({
                 </Button>
                 <input
                   id="quantity"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   min="1"
                   max="99"
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, Math.min(99, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => { if (e.target.value !== '' && isValidInteger(e.target.value)) setQuantity(Math.max(1, Math.min(99, parseInt(e.target.value)))); }}
+                  onBlur={(e) => { if (!e.target.value) setQuantity(1); }}
+                  onFocus={(e) => e.currentTarget.select()}
+                  style={noSpinnerStyle}
                   className="w-16 text-center border rounded px-2 py-1 bg-gray-800 border-gray-600"
                 />
                 <Button

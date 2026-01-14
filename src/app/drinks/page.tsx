@@ -25,6 +25,7 @@ type Drink = {
 type Category = {
   _id: string;
   name: string;
+  priority?: number;
 };
 
 export default function DrinksList() {
@@ -51,6 +52,18 @@ export default function DrinksList() {
       map[c._id] = c.name;
     }
     return map;
+  }, [categories]);
+
+  const orderedCategoryNames = useMemo(() => {
+    if (!categories) return [] as string[];
+    return [...(categories as Category[])]
+      .sort((a, b) => {
+        const pa = a.priority ?? 0;
+        const pb = b.priority ?? 0;
+        if (pb !== pa) return pb - pa; // higher priority first
+        return a.name.localeCompare(b.name);
+      })
+      .map((c) => c.name);
   }, [categories]);
 
   const visibleDrinks = useMemo(() => {
@@ -143,7 +156,9 @@ export default function DrinksList() {
 
     {/* Masonry-like columns so tiles flow under each other without tall gaps */}
     <div className="columns-1 sm:columns-2 md:columns-3 gap-6">
-        {Object.entries(grouped).map(([groupName, items]) => {
+        {(orderedCategoryNames.length ? orderedCategoryNames : Object.keys(grouped)).map((groupName) => {
+          const items = grouped[groupName];
+          if (!items || items.length === 0) return null;
           const getTranslatedGroupName = (name: string) => {
             const n = (name ?? '').toString();
             if (/saft|säfte|schorle|schorlen/i.test(n)) return t('cat_saefte');
@@ -235,13 +250,13 @@ export default function DrinksList() {
     {detail && (
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div className="absolute inset-0 bg-black/60" onClick={closeDetail} />
-        <div className="relative z-10 w-[min(900px,95%)] bg-white text-black rounded-lg p-6 shadow-xl">
+        <div className="relative z-10 w-[min(900px,95%)] bg-gray-900 text-white rounded-lg p-6 shadow-xl">
           <div className="flex justify-between items-start">
             <button
               onClick={closeDetail}
               aria-label={t('close') ?? 'Close'}
               title={t('close') ?? 'Close'}
-              className="absolute left-4 top-4 text-gray-600 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-shadow"
+              className="absolute left-4 top-4 text-gray-300 text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition-shadow"
             >
               ×
             </button>

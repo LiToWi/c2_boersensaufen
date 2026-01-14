@@ -108,7 +108,7 @@ function TableSection({ tableId, parties, expandedPartyId, onToggle }: { tableId
 function PartyCard({ party, isExpanded, onToggle }: { party: any, isExpanded: boolean, onToggle: () => void }) {
     const { t } = useLanguage();
     const table = useQuery(api.tables.getTableByID, { tableID: party.tableId as Id<"tables"> })
-    const summary = useQuery(api.drinks.getPartyOrderSummary, { partyId: party._id as Id<"parties"> })
+    const summary = useQuery(api.drinks.getPartyOrderSummary, { partyId: party._id as Id<"parties">, includeFinalized: true })
     const memberCount = useQuery(api.partyMembers.getPartyMemberCount, { partyId: party._id as Id<"parties"> })
     const allTimeMembers = useQuery(api.partyMembers.getAllTimePartyMembers, { partyId: party._id as Id<"parties"> })
     const adminCloseParty = useMutation(api.parties.adminCloseParty);
@@ -167,6 +167,14 @@ function PartyCard({ party, isExpanded, onToggle }: { party: any, isExpanded: bo
                             <div>
                                 <p className="text-xs text-gray-400">{t('fees') || 'Fees'} (€)</p>
                                 <p className="text-xl font-bold text-green-400">{summary?.totalFees?.toFixed(2) || '0.00'}</p>
+                            </div>
+                        </div>
+
+                        {/* Savings Row */}
+                        <div className="p-3 bg-slate-800/30 rounded border border-slate-700/40">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-400">{t('savings') || 'Savings'}</span>
+                                <span className="text-lg font-bold text-yellow-400">{summary?.totalSavings?.toFixed(2) || '0.00'} €</span>
                             </div>
                         </div>
 
@@ -295,8 +303,10 @@ function PartyOrders({ partyId }: { partyId: string }) {
                             <TableCell>{order.drinkName}</TableCell>
                             <TableCell className="text-center">{order.quantity}</TableCell>
                             <TableCell className="text-right">€{(order.priceAtOrder * order.quantity).toFixed(2)}</TableCell>
-                            <TableCell className="text-right text-green-400">
-                                €{((order.regularPriceAtOrder - order.priceAtOrder) * order.quantity).toFixed(2)}
+                            <TableCell className="text-right">
+                                <span className={(order.regularPriceAtOrder - order.priceAtOrder) * order.quantity > 0 ? 'text-green-400' : (order.regularPriceAtOrder - order.priceAtOrder) * order.quantity < 0 ? 'text-red-400' : 'text-gray-400'}>
+                                  €{((order.regularPriceAtOrder - order.priceAtOrder) * order.quantity).toFixed(2)}
+                                </span>
                             </TableCell>
                             <TableCell>
                                 <Badge variant={order.finalized ? "default" : "outline"} className="text-xs">

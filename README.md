@@ -16,5 +16,5 @@ This project uses:
 - NextJS + Next-Auth
 - Tailwind CSS & Shadcn UI
 - Typescript
-- Convex
-- PHP & Compose
+- Convex (self hosted)
+- PHP & ComposeJS

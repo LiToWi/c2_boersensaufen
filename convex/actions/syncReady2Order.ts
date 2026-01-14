@@ -4,11 +4,10 @@ import { v } from 'convex/values';
 import { api, internal as internalApi } from '../_generated/api';
 
 // Sync Ready2Order products from a filtered local service into Convex.
-// Usage: call this action (from dev or via Convex action runner). It will
-// fetch the URL provided by the `url` arg or from env READY2ORDER_SYNC_URL
-// (defaults to http://127.0.0.1:8090/products?includeProductGroup=true).
+// Usage: call this action (from dev or via Convex action runner). 
+// Fetches from the internal Ready2Order API running in docker-compose
 
-const DEFAULT_URL = 'http://127.0.0.1:8090/products?includeProductGroup=true';
+const DEFAULT_URL = 'http://php-ready2order:8090/products?includeProductGroup=true';
 const DEFAULT_CAPACITY = 50;
 
 function normalizeGroupName(raw: any) {
@@ -20,9 +19,9 @@ function normalizeGroupName(raw: any) {
 }
 
 export const syncReady2Order = action({
-  args: { url: v.optional(v.string()), dryRun: v.optional(v.boolean()), sampleSize: v.optional(v.number()) },
+  args: { dryRun: v.optional(v.boolean()), sampleSize: v.optional(v.number()) },
   handler: async ({ runMutation }, args) => {
-    const url = args.url ?? (process.env.READY2ORDER_SYNC_URL ?? DEFAULT_URL);
+    const url = DEFAULT_URL;
     const dryRun = args.dryRun ?? false;
     const sampleSize = args.sampleSize ?? 10;
 
@@ -55,22 +54,23 @@ export const syncReady2Order = action({
     else if (data.data && Array.isArray(data.data)) list = data.data;
     else if (data.results && Array.isArray(data.results)) list = data.results;
 
-    // Cache categories by name to avoid repeated DB calls
+    // Cache categories by name/group id to avoid repeated DB calls and track priority
     const categoryCache: Map<string, string> = new Map();
+    const categoryPriority: Map<string, number> = new Map();
 
     const getGroupId = (p: any) => {
       const g = p.productgroup ?? {};
       return g.productgroup_id ?? g.id ?? g.productgroupId ?? g.group_id ?? undefined;
     };
 
-    const upsertCategory = async (name: string, groupId?: string) => {
+    const upsertCategory = async (name: string, groupId: string | undefined, priority: number | undefined) => {
       const normalized = name || 'Ungrouped';
       const nm = normalized.toString();
       const cacheKey = groupId ? `gid:${groupId}` : `name:${nm}`;
       if (categoryCache.has(cacheKey)) return categoryCache.get(cacheKey)!;
 
       // Call the internal mutation to upsert category, preferring external group id when available
-      const result = await runMutation(internalApi.internal.syncMutations.upsertCategory, { name: nm, r2oGroupId: groupId });
+      const result = await runMutation(internalApi.internal.syncMutations.upsertCategory, { name: nm, r2oGroupId: groupId, priority });
       categoryCache.set(cacheKey, result);
       return result;
     };
@@ -190,7 +190,12 @@ export const syncReady2Order = action({
   const rawGroup = p.productgroup?.productgroup_name ?? '';
   const categoryName = normalizeGroupName(rawGroup);
   const groupId = String(getGroupId(p) ?? '').trim() || undefined;
-  const categoryId = await upsertCategory(categoryName, groupId);
+  const catKey = groupId ? `gid:${groupId}` : `name:${categoryName}`;
+  const productPriority = getPriority(p);
+  const existingCatPriority = categoryPriority.get(catKey);
+  const newCatPriority = existingCatPriority === undefined ? productPriority : Math.max(existingCatPriority, productPriority);
+  categoryPriority.set(catKey, newCatPriority);
+  const categoryId = await upsertCategory(categoryName, groupId, newCatPriority);
 
       // find existing drink by r2oId
 

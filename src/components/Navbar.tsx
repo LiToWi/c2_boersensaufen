@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, X, ShoppingCart } from 'lucide-react'
 import LanguageDropdown from './LanguageDropdown'
@@ -20,22 +20,59 @@ export default function Navbar() {
   const { currentParty, clearCurrentParty } = useParty()
   const leaveMember = useMutation(api.partyMembers.leaveMember)
   
-  // Get basket item count
-  const basketSummary = useQuery(
-    api.drinks.getPartyOrderSummary,
-    currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
-  )
+  // Determine user role
+  const userRole = session?.user?.name?.toLowerCase() || '';
+  const isAdmin = userRole === 'admin';
+  const isBar = userRole === 'bar';
+  const isPrivilegedUser = isAdmin || isBar;
+  
+  // Get all party orders and calculate count locally
   const allPartyOrders = useQuery(
     api.drinks.getPartyOrders,
     currentParty && currentParty !== "" ? { partyId: currentParty as Id<'parties'> } : "skip"
   )
   
-  // Calculate total quantity of all items (not finalized)
-  const basketCount = allPartyOrders
-    ? allPartyOrders
-        .filter((item: any) => !item.finalized)
-        .reduce((sum: number, item: any) => sum + item.quantity, 0)
-    : 0
+  // Track basket count in state and force refresh counter
+  const [basketCount, setBasketCount] = useState(0)
+  const [refreshCounter, setRefreshCounter] = useState(0)
+  
+  useEffect(() => {
+    if (!allPartyOrders) {
+      setBasketCount(0)
+      return
+    }
+    
+    const now = Date.now()
+    const EXPIRY_MS = 60000 // 60 seconds
+    
+    // Calculate count and find soonest expiring item
+    let count = 0
+    let soonestExpiryMs = Infinity
+    
+    allPartyOrders.forEach((item: any) => {
+      if (item.finalized) return
+      
+      const age = now - item.createdAt
+      const timeUntilExpiry = EXPIRY_MS - age
+      
+      if (timeUntilExpiry > 0) {
+        count += item.quantity || 0
+        soonestExpiryMs = Math.min(soonestExpiryMs, timeUntilExpiry)
+      }
+    })
+    
+    setBasketCount(count)
+    
+    // Set timeout to recalculate only when the soonest item expires
+    if (soonestExpiryMs !== Infinity && soonestExpiryMs < EXPIRY_MS) {
+      const timer = setTimeout(() => {
+        // Trigger recalculation by incrementing refresh counter
+        setRefreshCounter(prev => prev + 1)
+      }, soonestExpiryMs + 100) // Add 100ms buffer
+      
+      return () => clearTimeout(timer)
+    }
+  }, [allPartyOrders, refreshCounter])
 
   // Function to close mobile menu
   const closeMobileMenu = () => {
@@ -70,7 +107,11 @@ export default function Navbar() {
     <nav className="w-full bg-gray-900 text-white shadow-md sticky top-0 z-50">
       <div className="flex h-16 items-center justify-between px-4 w-full">
         {/* Left: Logo */}
-  <Link href="/" className="flex items-center text-2xl md:text-4xl font-bold tracking-tight hover:text-blue-600 transition">
+  <Link href={
+    isAdmin ? '/dashboard/admin' :
+    isBar ? '/dashboard/bar' :
+    '/'
+  } className="flex items-center text-2xl md:text-4xl font-bold tracking-tight hover:text-blue-600 transition">
           <span className="h-12 w-12 mr-2 relative">
             <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
           </span>
@@ -86,12 +127,19 @@ export default function Navbar() {
             )}
             <Link href="/drinks" className="hover:text-blue-600 transition">{t('nav_drinks')}</Link>
             {session && (
-              <Link href={session.user?.name === 'admin' ? '/dashboard/admin/' : '/dashboard/user'} className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
+              <Link href={
+                isAdmin ? '/dashboard/admin' : 
+                isBar ? '/dashboard/bar' :
+                '/dashboard/user'
+              } className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
             )}
-            {session && (
+            {isBar && (
+              <Link href="/beamer" className="hover:text-blue-600 transition">Beamer</Link>
+            )}
+            {session && !isPrivilegedUser && (
                 <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
             )}
-            {session && currentParty && (
+            {session && !isPrivilegedUser && currentParty && (
               <Link href="/basket" className="hover:text-blue-600 transition relative">
                 <ShoppingCart className="h-6 w-6" />
                 {basketCount > 0 && (
@@ -168,14 +216,27 @@ export default function Navbar() {
           </Link>
           {session && (
             <Link 
-              href={session.user?.name === 'admin' ? '/dashboard/admin' : '/dashboard/user'} 
+              href={
+                isAdmin ? '/dashboard/admin' : 
+                isBar ? '/dashboard/bar' :
+                '/dashboard/user'
+              }
               className="block hover:text-blue-600 transition text-lg"
               onClick={closeMobileMenu}
             >
               {t('nav_dashboard')}
             </Link>
           )}
-          {session && (
+          {isBar && (
+            <Link 
+              href="/beamer" 
+              className="block hover:text-blue-600 transition text-lg"
+              onClick={closeMobileMenu}
+            >
+              Beamer
+            </Link>
+          )}
+          {session && !isPrivilegedUser && (
             <Link 
               href={`/tables/${session.user?.name}`} 
               className="block hover:text-blue-600 transition text-lg"
@@ -184,7 +245,7 @@ export default function Navbar() {
               {t('nav_my_party')}
             </Link>
           )}
-          {session && currentParty && (
+          {session && !isPrivilegedUser && currentParty && (
             <Link 
               href="/basket" 
               className="block hover:text-blue-600 transition text-lg flex items-center gap-2"

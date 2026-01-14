@@ -4,7 +4,9 @@ import { SessionProvider } from 'next-auth/react'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { PartyProvider } from '@/contexts/PartyContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { SettingsProvider } from '@/contexts/SettingsContext'
 import { Toaster } from 'sonner'
+import NotificationListener from './NotificationListener'
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || 'http://127.0.0.1:3210'
 console.log('[Convex] Initializing client with URL:', convexUrl)
@@ -25,10 +27,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <LanguageProvider>
       <SessionProvider>
         <ConvexProvider client={convex}>
-            <PartyProvider>
-              {children}
-              <Toaster position="top-center" richColors />
-            </PartyProvider>
+            <SettingsProvider>
+              <PartyProvider>
+                {children}
+                <NotificationListener />
+                <Toaster position="top-center" richColors />
+              </PartyProvider>
+            </SettingsProvider>
         </ConvexProvider>
       </SessionProvider>
     </LanguageProvider>

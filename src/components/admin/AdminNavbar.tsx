@@ -27,7 +27,9 @@ export default function AdminNavbar() {
             <MenuItem basePath={basePath} href="" overrideHref={dashboardRoot} isActive={pathname === dashboardRoot}>{t('overview') || 'Overview'}</MenuItem>
             <MenuItem basePath={basePath} href="parties" isActive={checkActive("parties")}>{t('parties') || 'Parties'}</MenuItem>
             <MenuItem basePath={basePath} href="trinks" isActive={checkActive("trinks")}>{t('drinks_list') || 'Getränkeliste'}</MenuItem>
-            <MenuItem basePath={basePath} href="house-is-winning" isActive={checkActive("house-is-winning")}>{t('house_is_winning_menu') || 'Das Haus gewinnt(?)'}</MenuItem>
+            <MenuItem basePath={basePath} href="influence" isActive={checkActive("influence")}>{t('influence') || 'Einflussnahme'}</MenuItem>
+            <MenuItem basePath={basePath} href="notifications" isActive={checkActive("notifications")}>{t('notifications') || 'Notifications'}</MenuItem>
+            <MenuItem overrideHref="/beamer" isActive={pathname === "/beamer"}>{t('beamer_overview') || 'Beamer-Overview'}</MenuItem>
             <MenuItem basePath={basePath} href="danger-zone" isActive={checkActive("danger-zone")}><span className="text-red-600">{t('danger_zone') || 'Danger Zone'}</span></MenuItem>
         </div>
     )

@@ -5,10 +5,10 @@ import { useAction, useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Play, Square, RotateCcw, Clock, Activity, TestTube } from "lucide-react";
+import { AlertCircle, Play, Square, RotateCcw, Clock, Activity, TestTube, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, getBothLanguages } from "@/contexts/LanguageContext";
 
 export default function DangerZone() {
   const { t } = useLanguage();
@@ -21,9 +21,11 @@ export default function DangerZone() {
   const startMarket = useAction(api.adminActions.startMarket);
   const stopMarket = useAction(api.adminActions.stopMarket);
   const resetSystem = useAction(api.adminActions.resetSystem);
+  const sendNotification = useMutation(api.notifications.sendNotification);
   const systemStatus = useQuery(api.adminQueries.getSystemStatus);
   const testMode = useQuery(api.testMode.getTestMode);
   const toggleTestMode = useMutation(api.testMode.toggleTestMode);
+  const [isEnding, setIsEnding] = useState(false);
 
   // Update current time every second for runtime display
   useEffect(() => {
@@ -63,6 +65,11 @@ export default function DangerZone() {
     setIsStarting(true);
     try {
       const result = await startMarket({});
+      await sendNotification({
+        title: getBothLanguages('msg_market_started'),
+        message: getBothLanguages('msg_market_started_text'),
+        severity: 'success',
+      });
       toast.success(result.message || t('market_started') || 'Market started successfully');
     } catch (error: any) {
       toast.error(t('failed_start_market') || `Failed to start market: ${error.message}`);
@@ -75,6 +82,11 @@ export default function DangerZone() {
     setIsStopping(true);
     try {
       const result = await stopMarket({});
+      await sendNotification({
+        title: getBothLanguages('msg_market_stopped'),
+        message: getBothLanguages('msg_market_stopped_text'),
+        severity: 'warning',
+      });
       toast.success(result.message || t('market_stopped') || 'Market stopped successfully');
     } catch (error: any) {
       toast.error(t('failed_stop_market') || `Failed to stop market: ${error.message}`);
@@ -106,6 +118,22 @@ export default function DangerZone() {
       );
     } catch (error) {
       toast.error((t('failed_toggle_test_mode') || 'Failed to toggle test mode') + ': ' + String(error));
+    }
+  };
+
+  const handleEnd = async () => {
+    setIsEnding(true);
+    try {
+      await sendNotification({
+        title: getBothLanguages('msg_event_ended'),
+        message: getBothLanguages('msg_event_ended_text'),
+        severity: 'danger',
+      });
+      toast.success(t('notification_sent') || 'End notification sent');
+    } catch (error: any) {
+      toast.error(error?.message || (t('notification_failed') || 'Failed to send end notification'));
+    } finally {
+      setIsEnding(false);
     }
   };
 
@@ -288,6 +316,29 @@ export default function DangerZone() {
             className="bg-yellow-600 hover:bg-yellow-700"
           >
             {isStopping ? (t('stopping') || 'Stopping...') : (t('stop_market') || 'Stop Market')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* End Event */}
+      <Card className="bg-slate-900/80 border-red-500/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-400">
+            <LogOut className="h-5 w-5" />
+            {t('end_event') || 'End Event'}
+          </CardTitle>
+          <CardDescription>
+            {t('end_event_description') || 'Broadcast notification that the event has ended and no more orders are possible'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleEnd}
+            disabled={isEnding}
+            variant="destructive"
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {isEnding ? (t('ending') || 'Ending...') : (t('end_event') || 'End Event')}
           </Button>
         </CardContent>
       </Card>

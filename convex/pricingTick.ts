@@ -89,7 +89,12 @@ export const executePricingTick = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now()
-    const config = DEFAULT_PRICING_CONFIG
+    // Load dynamic config from settings (fallback to defaults)
+    const settingsRow = await ctx.db
+      .query('settings')
+      .withIndex('by_key', q => q.eq('key', 'pricingConfig'))
+      .first()
+    const config = settingsRow?.value ? { ...DEFAULT_PRICING_CONFIG, ...settingsRow.value } : DEFAULT_PRICING_CONFIG
     
     // Get market state
     const marketState = await ctx.db

@@ -19,8 +19,9 @@ export default function LoginPage() {
   const marketState = useQuery(api.pricingTick.getMarketState);
   const loading = marketState === undefined;
   const marketActive = marketState ? marketState.active !== false : false;
-  const isAdminInput = name.trim().toLowerCase() === "admin";
-  const isBlocked = !isAdminInput && !marketActive;
+  const normalizedName = name.trim().toLowerCase();
+  const isPrivilegedInput = ["admin", "tester", "bar"].includes(normalizedName);
+  const isBlocked = !isPrivilegedInput && !marketActive;
   
   useEffect(() => {
     if (error) setError("");

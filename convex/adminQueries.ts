@@ -18,10 +18,29 @@ export const getSystemStats = query({
     const totalRevenue = finalizedOrders.reduce((sum, order) => 
       sum + (order.priceAtOrder * order.quantity), 0
     );
+
+    const regularRevenue = finalizedOrders.reduce((sum, order) => {
+      const regular = order.regularPriceAtOrder ?? order.priceAtOrder;
+      return sum + (regular * order.quantity);
+    }, 0);
     
     const totalFees = finalizedOrders.reduce((sum, order) => 
-      sum + order.feePaid, 0
+      sum + (order.feePaid ?? 0), 0
     );
+
+    const houseGainValue = totalRevenue - regularRevenue + totalFees;
+
+    const houseGainPercent = regularRevenue > 0
+      ? (houseGainValue / regularRevenue) * 100
+      : 0;
+
+    const avgOrderValue = finalizedOrders.length > 0
+      ? totalRevenue / finalizedOrders.length
+      : 0;
+
+    const avgOrdersPerParty = allParties.length > 0
+      ? allOrders.length / allParties.length
+      : 0;
 
     // Drinks stats
     const drinks = await ctx.db.query('drinks').collect();
@@ -55,6 +74,13 @@ export const getSystemStats = query({
         pending: pendingOrders.length,
         totalRevenue: Number(totalRevenue.toFixed(2)),
         totalFees: Number(totalFees.toFixed(2)),
+        regularRevenue: Number(regularRevenue.toFixed(2)),
+        houseGain: {
+          value: Number(houseGainValue.toFixed(2)),
+          percent: Number(houseGainPercent.toFixed(2)),
+        },
+        avgOrderValue: Number(avgOrderValue.toFixed(2)),
+        avgOrdersPerParty: Number(avgOrdersPerParty.toFixed(2)),
       },
       drinks: {
         total: drinks.length,
@@ -203,5 +229,32 @@ export const getSystemStatus = query({
       runningTimeMs,
       hasData,
     };
+  },
+});
+
+/**
+ * Live order feed for admin drink list tab
+ */
+export const getLiveOrders = query({
+  handler: async (ctx) => {
+    const orders = await ctx.db
+      .query('orderItems')
+      .order('desc')
+      .take(200);
+
+    const enriched = await Promise.all(orders.map(async (order) => {
+      const party = await ctx.db.get(order.partyId);
+      const table = party ? await ctx.db.get(party.tableId) : null;
+      const orderDoc = await ctx.db.get(order.orderId);
+
+      return {
+        ...order,
+        partyName: party?.name ?? 'Unknown',
+        tableName: table?.name ?? 'Unknown',
+        orderCreatedAt: orderDoc?.createdAt ?? order.createdAt,
+      };
+    }));
+
+    return enriched;
   },
 });

@@ -1,4 +1,4 @@
-import { query, mutation } from './_generated/server';
+import { query, mutation, internalMutation } from './_generated/server';
 import { v } from "convex/values";
 
 const DEFAULT_CAPACITY = 50;
@@ -8,6 +8,28 @@ export const listDrinks = query({
     return await ctx.db.query('drinks').collect();
   },
 });
+
+export const updateDrink = mutation({
+  args: {
+    drinkId: v.id('drinks'),
+    currentPrice: v.optional(v.number()),
+    regularPrice: v.optional(v.number()),
+    capacity: v.optional(v.number()),
+    priority: v.optional(v.number()),
+    active: v.optional(v.boolean()),
+    lowBoundPrice: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { drinkId, ...rest } = args
+    const updates: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(rest)) {
+      if (v !== undefined) updates[k] = v
+    }
+    if (Object.keys(updates).length === 0) return { updated: false }
+    await ctx.db.patch(drinkId, updates)
+    return { updated: true }
+  }
+})
 
 /**
  * Get a single drink by ID
@@ -54,13 +76,22 @@ export const orderDrink = mutation({
     const memberCount = Math.max(1, activeMembers.length); // minimum 1
     const purchaseLimit = memberCount * 3;
     
-    // Count current pending (non-finalized) order items for this party
+    // Count current pending items, excluding expired ones
+    // The cron job handles deletion; we just filter them out
+    const now = Date.now();
     const orderItems = await ctx.db
       .query('orderItems')
-      .filter((q) => q.eq(q.field('partyId'), args.partyId))
+      .withIndex('by_party', (q) => q.eq('partyId', args.partyId))
       .collect();
-    const pendingItems = orderItems.filter(item => !item.finalized);
-    const currentPendingTotal = pendingItems.reduce((sum, item) => sum + item.quantity, 0);
+    
+    // Count only non-finalized, non-expired items
+    const currentPendingTotal = orderItems
+      .filter(item => {
+        if (item.finalized) return false;
+        const expiresAt = item.expiresAt || (item.createdAt + 60000);
+        return expiresAt > now; // Only count items that haven't expired yet
+      })
+      .reduce((sum, item) => sum + item.quantity, 0);
     
     // Check if adding this order would exceed limit
     if (currentPendingTotal + quantity > purchaseLimit) {
@@ -76,15 +107,21 @@ export const orderDrink = mutation({
       createdAt: Date.now(),
     });
     
-    // Calculate 1% trading fee on order value
+    // Calculate trading fee on order value from settings (default 1%)
     const orderValue = quantity * drink.currentPrice;
-    const feePaid = orderValue * 0.01; // 1% fee
+    const feeSetting = await ctx.db
+      .query('settings')
+      .withIndex('by_key', q => q.eq('key', 'tradingFeeRate'))
+      .first()
+    const feeRate = typeof feeSetting?.value === 'number' ? feeSetting.value : 0.01
+    const feePaid = orderValue * feeRate
     
     // Round prices to 2 decimal places (ceiling)
     const roundedPrice = Math.ceil(drink.currentPrice * 100) / 100;
     const roundedFee = Math.round(feePaid * 100) / 100;
     
-    // Create order item
+    // Create order item with expiry timestamp
+    const itemCreatedAt = Date.now();
     await ctx.db.insert('orderItems', {
       orderId,
       partyId: args.partyId,
@@ -94,7 +131,8 @@ export const orderDrink = mutation({
       priceAtOrder: roundedPrice,
       regularPriceAtOrder: drink.regularPrice,
       feePaid: roundedFee,
-      createdAt: Date.now(),
+      createdAt: itemCreatedAt,
+      expiresAt: itemCreatedAt + 60000, // Expires 60 seconds after creation
     });
     
     // NOTE: tickOrders are created when order is finalized, not when added to basket
@@ -126,23 +164,30 @@ export const getPartyOrders = query({
  * Only counts non-finalized (pending) orders
  */
 export const getPartyOrderSummary = query({
-  args: { partyId: v.optional(v.union(v.id('parties'), v.string())) },
+  args: { partyId: v.optional(v.union(v.id('parties'), v.string())), includeFinalized: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    if (!args.partyId) return { totalItems: 0, totalPrice: 0, totalFees: 0, itemCount: 0 };
+    if (!args.partyId) return { totalItems: 0, totalPrice: 0, totalFees: 0, totalSavings: 0, itemCount: 0 };
 
     const orderItems = await ctx.db
       .query('orderItems')
       .filter((q) => q.eq(q.field('partyId'), args.partyId))
       .collect();
     
-    // Only count non-finalized items
-    const pendingItems = orderItems.filter(item => !item.finalized);
+    // If includeFinalized is true, include both finalized and non-finalized items
+    // Otherwise, only count non-finalized items (default for basket view)
+    const items = args.includeFinalized === true 
+      ? orderItems 
+      : orderItems.filter(item => !item.finalized);
     
-    const totalItems = pendingItems.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = pendingItems.reduce((sum, item) => sum + (item.quantity * item.priceAtOrder), 0);
-    const totalFees = pendingItems.reduce((sum, item) => sum + item.feePaid, 0);
+    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalPrice = items.reduce((sum, item) => sum + (item.quantity * item.priceAtOrder), 0);
+    const totalFees = items.reduce((sum, item) => sum + item.feePaid, 0);
+    const totalSavings = items.reduce((sum, item) => {
+      const regularPrice = item.regularPriceAtOrder ?? item.priceAtOrder;
+      return sum + (item.quantity * (regularPrice - item.priceAtOrder));
+    }, 0);
     
-    return { totalItems, totalPrice, totalFees, itemCount: pendingItems.length };
+    return { totalItems, totalPrice, totalFees, totalSavings, itemCount: items.length };
   },
 });
 
@@ -210,5 +255,167 @@ export const finalizePartyOrders = mutation({
     }
     
     return { success: true, finalizedCount };
+  },
+});
+
+/**
+ * Internal mutation to clean up expired basket items
+ * Called by cron job every 30 seconds
+ * Uses index for efficient querying
+ */
+export const cleanupExpiredItems = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    
+    // Query only expired items using index (much faster than scanning all items)
+    // Note: We can't directly filter expiresAt <= now in the index query,
+    // so we get all items and filter. This is still faster than no index.
+    const allItems = await ctx.db.query('orderItems').collect();
+    
+    let deletedCount = 0;
+    for (const item of allItems) {
+      // Skip finalized items
+      if (item.finalized) continue;
+      
+      // Check if expired using expiresAt field or fallback to age calculation
+      const expiresAt = item.expiresAt || (item.createdAt + 60000);
+      
+      if (expiresAt <= now) {
+        // Restore capacity
+        const drink = await ctx.db.get(item.drinkId);
+        if (drink) {
+          const currentCapacity = typeof drink.capacity === 'number' ? drink.capacity : DEFAULT_CAPACITY;
+          await ctx.db.patch(item.drinkId, { capacity: currentCapacity + item.quantity });
+        }
+        
+        // Delete expired item
+        await ctx.db.delete(item._id);
+      }
+    }
+  },
+});
+
+/**
+ * Get top 5 ordered drinks (by quantity)
+ */
+export const topOrderedDrinks = query({
+  args: {},
+  handler: async (ctx) => {
+    const orderItems = await ctx.db
+      .query('orderItems')
+      .filter((q) => q.eq(q.field('finalized'), true))
+      .collect();
+    
+    const drinkMap = new Map<string, { drinkId: string; drinkName: string; quantity: number }>();
+    
+    for (const item of orderItems) {
+      const key = String(item.drinkId);
+      if (drinkMap.has(key)) {
+        const existing = drinkMap.get(key)!;
+        existing.quantity += item.quantity;
+      } else {
+        drinkMap.set(key, {
+          drinkId: String(item.drinkId),
+          drinkName: item.drinkName,
+          quantity: item.quantity,
+        });
+      }
+    }
+    
+    return Array.from(drinkMap.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+  },
+});
+
+/**
+ * Get top 5 most expensive drinks (highest markup relative to regular price)
+ */
+export const topExpensiveDrinks = query({
+  args: {},
+  handler: async (ctx) => {
+    const drinks = await ctx.db.query('drinks').collect();
+    
+    return drinks
+      .filter((d) => d.active !== false && d.regularPrice && d.currentPrice)
+      .map((d) => ({
+        _id: d._id,
+        name: d.name,
+        currentPrice: d.currentPrice,
+        regularPrice: d.regularPrice!,
+        markup: d.currentPrice - d.regularPrice!,
+        markupPercent: ((d.currentPrice - d.regularPrice!) / d.regularPrice!) * 100,
+      }))
+      .sort((a, b) => b.markup - a.markup)
+      .slice(0, 5);
+  },
+});
+
+/**
+ * Get top 5 cheapest drinks (highest discount relative to regular price)
+ */
+export const topCheapestDrinks = query({
+  args: {},
+  handler: async (ctx) => {
+    const drinks = await ctx.db.query('drinks').collect();
+    
+    return drinks
+      .filter((d) => d.active !== false && d.regularPrice && d.currentPrice)
+      .map((d) => ({
+        _id: d._id,
+        name: d.name,
+        currentPrice: d.currentPrice,
+        regularPrice: d.regularPrice!,
+        discount: d.regularPrice! - d.currentPrice,
+        discountPercent: ((d.regularPrice! - d.currentPrice) / d.regularPrice!) * 100,
+      }))
+      .sort((a, b) => b.discount - a.discount)
+      .slice(0, 5);
+  },
+});
+
+/**
+ * Get top 10 parties by cumulative savings
+ */
+export const topPartiesBySavings = query({
+  args: {},
+  handler: async (ctx) => {
+    const orderItems = await ctx.db
+      .query('orderItems')
+      .filter((q) => q.eq(q.field('finalized'), true))
+      .collect();
+    
+    const parties = await ctx.db.query('parties').collect();
+    
+    const partyMap = new Map<string, {
+      partyId: string;
+      partyName: string;
+      totalSavings: number;
+      orderCount: number;
+    }>();
+    
+    for (const item of orderItems) {
+      const partyId = String(item.partyId);
+      const savings = item.quantity * ((item.regularPriceAtOrder ?? item.priceAtOrder) - item.priceAtOrder);
+      
+      if (partyMap.has(partyId)) {
+        const existing = partyMap.get(partyId)!;
+        existing.totalSavings += savings;
+        existing.orderCount += 1;
+      } else {
+        const party = parties.find((p) => String(p._id) === partyId);
+        partyMap.set(partyId, {
+          partyId,
+          partyName: party?.name || 'Unknown Party',
+          totalSavings: savings,
+          orderCount: 1,
+        });
+      }
+    }
+    
+    return Array.from(partyMap.values())
+      .sort((a, b) => b.totalSavings - a.totalSavings)
+      .slice(0, 10);
   },
 });

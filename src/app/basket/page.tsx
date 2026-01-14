@@ -15,6 +15,10 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 
 export default function BasketPage() {
+    // Settings for dynamic fee label
+    const { useSettings } = require('@/contexts/SettingsContext')
+    const settingsHook = useSettings()
+    const feePctLabel = settingsHook?.tradingFeeRate !== undefined ? `${Math.round(settingsHook.tradingFeeRate * 100)}%` : '1%'
   // All hooks MUST be called unconditionally at the top
   const { t } = useLanguage()
   const router = useRouter()
@@ -72,21 +76,32 @@ export default function BasketPage() {
 
   // Check for expired items and auto-delete them (only non-finalized)
   useEffect(() => {
-    if (!orderItems) return
+    if (!orderItems || orderItems.length === 0) return
 
     const now = Date.now()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const expiredItems = (orderItems as any[]).filter((item: any) => {
       if (item.finalized) return false // Don't delete finalized items
-      const age = now - item.createdAt
-      return age > 60000 // 60 seconds
+      if (deletingItems.has(item._id)) return false // Skip already deleting items
+      // Use expiresAt if available, otherwise calculate from createdAt
+      const expiresAt = item.expiresAt || (item.createdAt + 60000)
+      return expiresAt <= now
     })
 
     // Auto-delete expired items
-    expiredItems.forEach((item: any) => {
-      deleteOrderItem({ orderItemId: item._id })
-    })
-  }, [orderItems, deleteOrderItem])
+    if (expiredItems.length > 0) {
+      expiredItems.forEach((item: any) => {
+        setDeletingItems(prev => new Set(prev).add(item._id))
+        deleteOrderItem({ orderItemId: item._id }).then(() => {
+          setDeletingItems(prev => {
+            const next = new Set(prev)
+            next.delete(item._id)
+            return next
+          })
+        })
+      })
+    }
+  }, [orderItems, deleteOrderItem, deletingItems])
 
   // Show blank page while loading
   if (status === 'loading') return null;
@@ -320,7 +335,7 @@ export default function BasketPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-300">
-                  <div>{t('trading_fee') || 'Trading Fee (1%)'}</div>
+                  <div>{(t('trading_fee') || 'Trading Fee (1%)').replace('1%', feePctLabel)}</div>
                   <div>
                     +{orderItems.filter((i: any) => !i.finalized).reduce((sum: number, item: any) => sum + item.feePaid, 0).toFixed(2)} €
                   </div>
@@ -380,7 +395,7 @@ export default function BasketPage() {
                     <th className="pb-2 font-semibold text-white text-right">{t('original_price') || 'Original Price'}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('ordered_price') || 'Order Price'}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('saving') || 'Saving'}</th>
-                    <th className="pb-2 font-semibold text-white text-right">{t('trading_fee') || 'Fee (1%)'}</th>
+                    <th className="pb-2 font-semibold text-white text-right">{(t('trading_fee') || 'Fee (1%)').replace('1%', feePctLabel)}</th>
                     <th className="pb-2 font-semibold text-white text-right">{t('total') || 'Total'}</th>
                   </tr>
                 </thead>
@@ -449,7 +464,7 @@ export default function BasketPage() {
                 })()}
               </div>
               <div className="flex justify-between text-base">
-                <span className="text-gray-300">{t('trading_fee') || 'Trading Fee (1%)'}:</span>
+                <span className="text-gray-300">{(t('trading_fee') || 'Trading Fee (1%)').replace('1%', feePctLabel)}:</span>
                 <span className="text-yellow-400">
                   +{orderItems
                     .filter((item: any) => item.finalized)

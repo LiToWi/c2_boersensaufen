@@ -27,8 +27,11 @@ export const authOptions: AuthOptions = {
 
           if (!table) return null;
 
-          const isAdmin = table.name?.toLowerCase() === 'admin';
-          if (!isAdmin) {
+          const normalizedName = (table.name || '').trim().toLowerCase();
+          const requestedName = (credentials.name || '').trim().toLowerCase();
+          const isPrivileged = ['admin', 'tester', 'bar'].includes(normalizedName) || ['admin', 'tester', 'bar'].includes(requestedName);
+          console.log('[Auth] login attempt', { tableName: table.name, normalizedName, requestedName, isPrivileged });
+          if (!isPrivileged) {
             const marketState = await serverConvex.query(api.pricingTick.getMarketState, {} as any);
             if (!marketState || marketState.active === false) {
               throw new Error('MARKET_INACTIVE');
@@ -70,8 +73,10 @@ export const authOptions: AuthOptions = {
 
           if (!table) return null;
 
-          const isAdmin = table.name?.toLowerCase() === 'admin';
-          if (!isAdmin) {
+          const normalizedName = (table.name || '').trim().toLowerCase();
+          const isPrivileged = ['admin', 'tester', 'bar'].includes(normalizedName);
+          console.log('[Auth][token] login attempt', { tableName: table.name, normalizedName, isPrivileged });
+          if (!isPrivileged) {
             const marketState = await serverConvex.query(api.pricingTick.getMarketState, {} as any);
             if (!marketState || marketState.active === false) {
               throw new Error('MARKET_INACTIVE');

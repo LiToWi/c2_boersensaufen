@@ -34,15 +34,26 @@ export default function BasketTimerBanner() {
 
   if (!orderItems || orderItems.length === 0) return null
 
-  // Filter non-finalized items
-  const pendingItems = orderItems.filter((item: any) => !item.finalized)
+  // Filter non-finalized items and check expiry
+  const now = Date.now()
+  const pendingItems = orderItems.filter((item: any) => {
+    if (item.finalized) return false
+    // Use expiresAt if available, otherwise calculate from createdAt
+    const expiresAt = item.expiresAt || (item.createdAt + 60000)
+    return expiresAt > now
+  })
+  
   if (pendingItems.length === 0) return null
 
+  // Calculate total quantity of all pending items
+  const totalQuantity = pendingItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
+  
+  if (totalQuantity === 0) return null
+
   // Find the item with the shortest remaining time
-  const now = Date.now()
   const itemsWithTime = pendingItems.map((item: any) => {
-    const age = now - item.createdAt
-    const remaining = Math.max(0, 60000 - age)
+    const expiresAt = item.expiresAt || (item.createdAt + 60000)
+    const remaining = Math.max(0, expiresAt - now)
     return {
       ...item,
       remainingMs: remaining,
@@ -58,7 +69,6 @@ export default function BasketTimerBanner() {
   )
 
   const isExpiring = shortestItem.remainingSeconds <= 10
-  const itemCount = pendingItems.length
 
   return (
     <Link href="/basket">
@@ -69,7 +79,7 @@ export default function BasketTimerBanner() {
           <div className="flex items-center gap-3">
             <ShoppingCart className="h-5 w-5" />
             <span className="font-semibold">
-              {itemCount} {itemCount === 1 ? (t('item') || 'item') : (t('items') || 'items')} {t('in_basket') || 'in basket'}
+              {totalQuantity} {totalQuantity === 1 ? (t('item') || 'item') : (t('items') || 'items')} {t('in_basket') || 'in basket'}
             </span>
           </div>
           

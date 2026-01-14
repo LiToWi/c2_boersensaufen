@@ -18,4 +18,11 @@ crons.interval(
   internal.pricingTick.executePricingTick
 )
 
+// Clean up expired basket items every 30 seconds
+crons.interval(
+  'cleanup-expired-items',
+  { seconds: 30 },
+  internal.drinks.cleanupExpiredItems
+)
+
 export default crons

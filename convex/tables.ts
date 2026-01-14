@@ -35,7 +35,9 @@ export const populatePhysicalTables = mutation({
       ["29", "vezgbj", "hdqutrxlwlmukjzjzswpzgzjgbfvezgbj"],
       ["30", "hdqutr", "xlwlmukjzjzswpzgzjgbfvezgbjhdqutrx"],
       ["Stammtisch", "2310", "vorstand"],
-      ["admin", "23102005", "adminaccesskey"],
+      ["admin", "23102005", "admintoken"],
+      ["tester", "dev", "testertoken"],
+      ["Bar", "_2310_", "bartoken"],
     ].map(
       async (n) =>
         await ctx.db.insert("tables", {
