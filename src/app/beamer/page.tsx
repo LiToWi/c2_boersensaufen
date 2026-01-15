@@ -16,7 +16,13 @@ export default function BeamerOverview() {
   const [countdown, setCountdown] = useState('');
 
   useEffect(() => {
-    const intervalMs = 10 * 60 * 1000;
+    // Only run countdown if there's an active event
+    if (!currentEvent) {
+      setCountdown('');
+      return;
+    }
+
+    const intervalMs = 15 * 60 * 1000;
     const format = (ms: number) => {
       const totalSec = Math.max(0, Math.floor(ms / 1000));
       const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
@@ -31,7 +37,7 @@ export default function BeamerOverview() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [currentEvent]);
 
   const loading = !topExpensive || !topCheapest || !topParties || currentEvent === undefined;
 
@@ -53,18 +59,28 @@ export default function BeamerOverview() {
         </div>
 
         {/* Current Event Banner */}
-        {currentEvent && (
-          <div className="mb-8 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-xl p-8 border-4 border-amber-400 shadow-2xl">
-            <div className="text-center">
-              <div className="text-5xl mb-2">🔥</div>
-              <h2 className="text-3xl font-bold mb-1 text-white drop-shadow-lg">{currentEvent.title}</h2>
-              <p className="text-4xl font-semibold text-white mb-3">{eventText}</p>
-              <div className="mt-4 text-white/90 text-lg font-mono">
-                {t('next_event_in', 'Next event in')}: {countdown}
+        <div className="mb-8 rounded-xl p-8 border-4 shadow-2xl">
+          {currentEvent ? (
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-lg p-6 border-4 border-amber-400">
+              <div className="text-center">
+                <div className="text-5xl mb-2">🔥</div>
+                <h2 className="text-3xl font-bold mb-1 text-white drop-shadow-lg">{currentEvent.title}</h2>
+                <p className="text-4xl font-semibold text-white mb-3">{eventText}</p>
+                <div className="mt-4 text-white/90 text-lg font-mono">
+                  {t('next_event_in', 'Next event in')}: {countdown}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 rounded-lg p-6 border-4 border-slate-500">
+              <div className="text-center">
+                <div className="text-5xl mb-2">📊</div>
+                <h2 className="text-3xl font-bold mb-1 text-white drop-shadow-lg">{t('market_active', 'Market Active')}</h2>
+                <p className="text-2xl text-white/80">{t('no_event_active', 'No special event at the moment')}</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 3 Column Grid Layout */}
         <div className="grid grid-cols-3 gap-8 mb-8">
