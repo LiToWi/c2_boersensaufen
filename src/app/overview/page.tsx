@@ -6,17 +6,24 @@ import { api } from '../../../convex/_generated/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { TrendingUp, TrendingDown, Target } from 'lucide-react';
 
-export default function BeamerOverview() {
+export default function OverviewPage() {
   const { t, lang } = useLanguage();
   const topExpensive = useQuery(api.drinks.topExpensiveDrinks);
   const topCheapest = useQuery(api.drinks.topCheapestDrinks);
   const topParties = useQuery(api.drinks.topPartiesBySavings);
   const currentEvent = useQuery(api.events.getCurrentEvent);
-  const eventText = currentEvent ? (lang === 'de' ? currentEvent.textDe : currentEvent.textEn) : '';
   const [countdown, setCountdown] = useState('');
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  // Update timestamp whenever data changes
+  useEffect(() => {
+    if (topExpensive && topCheapest && topParties) {
+      setLastUpdate(new Date());
+    }
+  }, [topExpensive, topCheapest, topParties]);
 
   useEffect(() => {
-    const intervalMs = 10 * 60 * 1000;
+    const intervalMs = 15 * 60 * 1000;
     const format = (ms: number) => {
       const totalSec = Math.max(0, Math.floor(ms / 1000));
       const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
@@ -42,6 +49,8 @@ export default function BeamerOverview() {
       </div>
     );
   }
+
+  const eventText = currentEvent ? (lang === 'de' ? currentEvent.textDe : currentEvent.textEn) : '';
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-b from-gray-900 via-slate-900 to-gray-900 p-8 text-white">
@@ -149,7 +158,7 @@ export default function BeamerOverview() {
 
         {/* Footer */}
         <div className="text-center text-gray-500 text-sm mt-12">
-          <p>Last updated: {new Date().toLocaleTimeString()}</p>
+          <p>Last updated: {lastUpdate.toLocaleTimeString()}</p>
         </div>
       </div>
     </div>

@@ -22,7 +22,7 @@ export default function TablePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [partyName, setPartyName] = useState('')
-  const [partyPassword, setPartyPassword] = useState('')
+  const [partyCreationPassword, setPartyCreationPassword] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   
   // Add party context
@@ -132,6 +132,11 @@ export default function TablePage() {
     if (e) e.preventDefault();
     if (!partyName.trim() || !table?._id) return;
 
+    if (!partyCreationPassword.trim()) {
+      alert(t('party_creation_password_required') || 'Party creation password is required');
+      return;
+    }
+
     if (!memberKey) {
       alert(t('creator_required') || 'Unable to create party: missing creator id.');
       return;
@@ -145,7 +150,12 @@ export default function TablePage() {
     
     setIsCreating(true);
     try {
-      const newParty = await createParty({ name: partyName, tableId: table._id, password: partyPassword, creatorId: memberKey });
+      const newParty = await createParty({ 
+        name: partyName, 
+        tableId: table._id, 
+        partyCreationPassword: partyCreationPassword, 
+        creatorId: memberKey 
+      });
       console.log('createParty returned', newParty);
       if (!newParty || !newParty._id) {
         alert(t('create_party_failed') || 'Failed to create party')
@@ -153,7 +163,7 @@ export default function TablePage() {
       }
 
       setPartyName('');
-      setPartyPassword('');
+      setPartyCreationPassword('');
       
       // Trigger R2O table creation via API route (has access to env vars)
       // Wait for it to complete and update party BEFORE joining
@@ -434,23 +444,30 @@ export default function TablePage() {
                 />
               </div>
 
-              {/* Party password (optional) */}
+              {/* Party creation password (required) */}
               <div className="w-full">
-                <Label htmlFor="partyPassword">{t('party_password_placeholder_title')}</Label>
+                <Label htmlFor="partyCreationPassword">
+                  {t('party_creation_password_title') || 'Party Creation Password *'}
+                </Label>
                 <Input
-                  id="partyPassword"
-                  type="password"
-                  value={partyPassword}
-                  onChange={(e) => setPartyPassword(e.target.value)}
-                  placeholder={t('party_password_placeholder') || 'Optional password'}
+                  id="partyCreationPassword"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={8}
+                  value={partyCreationPassword}
+                  onChange={(e) => setPartyCreationPassword(e.target.value)}
+                  placeholder={t('party_creation_password_placeholder') || '8-digit password'}
                   className="w-full"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  {t('party_creation_password_help') || 'Get this password from the bar in exchange for your student ID'}
+                </p>
               </div>
 
               {/* Submit / Create party */}
               <div className="mt-4 flex items-center justify-end sm:col-span-2">
-                <Button type="submit">
-                  {t('create_party') || 'Create party'}
+                <Button type="submit" disabled={isCreating || !partyName.trim() || !partyCreationPassword.trim()}>
+                  {isCreating ? t('creating') : t('create_party') || 'Create party'}
                 </Button>
               </div>
             </form>

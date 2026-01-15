@@ -1,14 +1,14 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -37,12 +37,12 @@ export default function LoginPage() {
 
   const handleTokenLogin = async (token: string) => {
     const res = await signIn("token", {
-      token,
-      callbackUrl: "/",
+      token: token,
       redirect: false,
     });
-    if (!res?.ok) setError(res?.error === "MARKET_INACTIVE" ? t("market_not_started") : t("invalid_login"));
-    else {
+    if (!res?.ok) {
+      setError(res?.error === "MARKET_INACTIVE" ? t("market_not_started") : t("invalid_login"));
+    } else {
       // Get table name from session after login
       const response = await fetch("/api/auth/session");
       const session = await response.json();
@@ -143,3 +143,13 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+export const dynamic = "force-dynamic";

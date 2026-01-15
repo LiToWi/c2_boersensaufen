@@ -8,7 +8,26 @@ import { api, internal as internalApi } from '../_generated/api';
 // Fetches from the internal Ready2Order API running in docker-compose
 
 const DEFAULT_URL = 'http://php-ready2order:8090/products?includeProductGroup=true';
-const DEFAULT_CAPACITY = 50;
+const DEFAULT_CAPACITY = 20;
+
+function getCapacityForDrink(name: string): number {
+  const lowerName = name.toLowerCase();
+  
+  // Shots get 50
+  if (lowerName.includes('shot')) return 50;
+  
+  // Anything with "Maß" gets 15
+  if (lowerName.includes('maß')) return 15;
+  
+  // Helles gets 1.5x default (30)
+  if (lowerName.includes('helles')) return Math.round(DEFAULT_CAPACITY * 2);
+  
+  // Helles gets 1.5x default (30)
+  if (lowerName.includes('weißbier')) return Math.round(DEFAULT_CAPACITY * 2);
+
+  // Everything else gets default
+  return DEFAULT_CAPACITY;
+}
 
 function normalizeGroupName(raw: any) {
   const name = (raw ?? '').toString().trim();
@@ -210,7 +229,7 @@ export const syncReady2Order = action({
         regularPrice,
         lowBoundPrice,
         priority,
-        capacity: DEFAULT_CAPACITY,
+        capacity: getCapacityForDrink(name),
         categoryId,
         active: !(typeof p.product_active !== 'undefined' && (p.product_active === false || p.product_active === 0 || String(p.product_active).toLowerCase() === 'false' || String(p.product_active) === '0')),
       };

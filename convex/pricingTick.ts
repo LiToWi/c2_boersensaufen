@@ -193,7 +193,7 @@ export const executePricingTick = internalMutation({
         drinkState.volatilityReducedUntil !== undefined &&
         drinkState.volatilityReducedUntil > now
       
-      // Update price
+      // Update price via pricing engine
       const result = updateDrinkPrice({
         drinkId: drink._id,
         currentLogPrice: drinkState.logPrice,
@@ -209,9 +209,25 @@ export const executePricingTick = internalMutation({
       })
       
       priceUpdates.push(result)
+
+      // Events now apply their effects ONCE when triggered (in triggerNextEvent)
+      // So we just use the engine's calculated price directly
+      let adjustedPrice = result.newPrice
+
+      // Enforce price bounds (engine already does this, but enforce again for safety)
+      // Lower bound: 0.4 * regularPrice (40% minimum)
+      // Upper bound: 2.5 * regularPrice (250% maximum)
+      const lowerBound = drink.regularPrice ? drink.regularPrice * 0.4 : 0
+      const upperBound = drink.regularPrice ? drink.regularPrice * 2.5 : adjustedPrice
       
+      if (adjustedPrice < lowerBound) {
+        adjustedPrice = lowerBound
+      } else if (adjustedPrice > upperBound) {
+        adjustedPrice = upperBound
+      }
+
       // Round price to 2 decimal places (ceiling)
-      const roundedPrice = Math.ceil(result.newPrice * 100) / 100
+      const roundedPrice = Math.ceil(adjustedPrice * 100) / 100
       
       // Update drink price in database
       await ctx.db.patch(drink._id, {

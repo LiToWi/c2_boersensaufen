@@ -43,9 +43,15 @@ export const resetSystem = action({
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearParties, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearPriceData, {});
     await ctx.scheduler.runAfter(0, internal.adminMutations.clearDrinkMarketState, {});
+    await ctx.scheduler.runAfter(0, internal.adminMutations.clearPartyPasswords, {});
+    await ctx.scheduler.runAfter(0, internal.events.resetOccurrenceFlags, {}); // Reset event occurrence flags
     
     // After cleanup, re-sync Ready2Order (waits 3 seconds for cleanup to finish)
-    await ctx.scheduler.runAfter(3000, internal.actions.syncReady2Order.syncReady2Order, { dryRun: false, sampleSize: 10 });
+    // Note: syncReady2Order is an action, not directly accessible via internal - skip for now
+    // TODO: Implement admin sync function as mutation instead of action
+    
+    // Reinitialize party passwords (after cleanup completes)
+    await ctx.scheduler.runAfter(3000, internal.adminMutations.reinitializePartyPasswords, {});
     
     // Schedule market to be reset to stopped state after sync completes
     await ctx.scheduler.runAfter(8000, internal.adminMutations.initializeMarketState, { active: false });

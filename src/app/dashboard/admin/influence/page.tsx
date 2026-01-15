@@ -15,11 +15,6 @@ import { GripVertical, HelpCircle } from 'lucide-react';
 
 // Parameter descriptions with higher/lower effects
 const parameterDescriptions: Record<string, { description: string; higher: string; lower: string }> = {
-  tickIntervalSeconds: {
-    description: 'How often prices update (in seconds)',
-    higher: 'Prices update less frequently, less volatile',
-    lower: 'Prices update more frequently, more responsive'
-  },
   beta: {
     description: 'Mean reversion strength - how quickly prices return to fundamental value',
     higher: 'Prices snap back faster to fundamental value, more stable',
@@ -255,7 +250,7 @@ export default function InfluencePage() {
   const handleSaveConfig = async () => {
     const partial: any = {};
     const keys = [
-      'tickIntervalSeconds','beta','lambda','k','N0','lowerBoundMultiplier','upperBoundMultiplier','maxJumpPercent','maxImpactPerUserPerTick','largeJumpThreshold','consecutiveJumpsForBreaker','volatilityReductionDuration','volatilityReductionFactor'
+      'beta','lambda','k','N0','lowerBoundMultiplier','upperBoundMultiplier','maxJumpPercent','maxImpactPerUserPerTick','largeJumpThreshold','consecutiveJumpsForBreaker','volatilityReductionDuration','volatilityReductionFactor'
     ];
     keys.forEach(k => {
       const v = configDraft?.[k];
@@ -354,7 +349,7 @@ export default function InfluencePage() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {settings && (
             <>
-              {['tickIntervalSeconds','beta','lambda','k','N0','lowerBoundMultiplier','upperBoundMultiplier','maxJumpPercent','maxImpactPerUserPerTick','largeJumpThreshold','consecutiveJumpsForBreaker','volatilityReductionDuration','volatilityReductionFactor'].map((key) => (
+              {['beta','lambda','k','N0','lowerBoundMultiplier','upperBoundMultiplier','maxJumpPercent','maxImpactPerUserPerTick','largeJumpThreshold','consecutiveJumpsForBreaker','volatilityReductionDuration','volatilityReductionFactor'].map((key) => (
                 <div key={key}>
                   <div className="flex items-center gap-1 mb-1">
                     <label className="block text-sm text-gray-400">{key}</label>

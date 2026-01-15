@@ -16,22 +16,22 @@ export interface RegimeParameters {
 
 export const REGIME_PARAMS: Record<MarketRegime, RegimeParameters> = {
   Calm: {
-    alphaR: 0.08,
+    alphaR: 0.06,
     noiseStdDev: 0.002, // ~0.2% per tick
-    minDuration: 300, // 5 minutes
-    maxDuration: 600, // 10 minutes
+    minDuration: 480, // 8 minutes
+    maxDuration: 900, // 15 minutes
   },
   Normal: {
-    alphaR: 0.14,
+    alphaR: 0.10,
     noiseStdDev: 0.005, // ~0.5% per tick
-    minDuration: 300,
-    maxDuration: 600,
+    minDuration: 480,
+    maxDuration: 900,
   },
   Hype: {
-    alphaR: 0.20,
+    alphaR: 0.15,
     noiseStdDev: 0.008, // ~0.8% per tick
-    minDuration: 180, // 3 minutes
-    maxDuration: 420, // 7 minutes
+    minDuration: 360, // 6 minutes
+    maxDuration: 720, // 12 minutes
   },
 }
 
@@ -44,16 +44,15 @@ export const REGIME_TRANSITIONS: Record<MarketRegime, Record<MarketRegime, numbe
 
 export interface PricingConfig {
   // Core parameters
-  tickIntervalSeconds: number // 10 seconds
-  beta: number // Mean reversion strength (0.04)
+  beta: number // Mean reversion strength (0.025)
   lambda: number // Dirichlet smoothing parameter (0.5)
   k: number // tanh saturation parameter (2)
   N0: number // Activity scaling threshold (10)
   
   // Bounds
-  lowerBoundMultiplier: number // 0.6
-  upperBoundMultiplier: number // 2.2
-  maxJumpPercent: number // 0.08 (8%)
+  lowerBoundMultiplier: number // 0.5
+  upperBoundMultiplier: number // 2.0
+  maxJumpPercent: number // 0.06 (6%)
   
   // Anti-manipulation
   maxImpactPerUserPerTick: number // 2 units
@@ -66,14 +65,13 @@ export interface PricingConfig {
 }
 
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
-  tickIntervalSeconds: 10,
-  beta: 0.04,
+  beta: 0.025,
   lambda: 0.5,
   k: 2,
   N0: 10,
-  lowerBoundMultiplier: 0.6,
-  upperBoundMultiplier: 2.2,
-  maxJumpPercent: 0.08,
+  lowerBoundMultiplier: 0.5,
+  upperBoundMultiplier: 2.0,
+  maxJumpPercent: 0.06,
   maxImpactPerUserPerTick: 2,
   largeJumpThreshold: 0.05,
   consecutiveJumpsForBreaker: 3,

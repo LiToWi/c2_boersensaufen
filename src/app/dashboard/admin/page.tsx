@@ -51,6 +51,33 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
 
+      {/* Market Capitalization */}
+      <Card className="bg-slate-900/80 border-purple-500/40">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>{t('market_cap') || 'Market Capitalization'}</span>
+            <Badge variant={stats.marketCap.difference >= 0 ? "default" : "destructive"}>
+              {stats.marketCap.difference >= 0 ? '+' : ''}€{stats.marketCap.difference.toFixed(2)} ({stats.marketCap.percent.toFixed(1)}%)
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-300 mb-3">
+            {t('market_cap_desc') || 'Total market value vs regular prices (active drinks × capacity)'}
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-400">{t('current_value') || 'Current Value'}</p>
+              <p className="text-2xl font-bold text-purple-400">€{stats.marketCap.current.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">{t('regular_value') || 'Regular Value'}</p>
+              <p className="text-2xl font-bold text-gray-400">€{stats.marketCap.regular.toFixed(2)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Market Status */}
       <Card className="bg-slate-900/80 border-blue-500/40">
         <CardHeader>

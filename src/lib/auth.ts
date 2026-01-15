@@ -63,19 +63,26 @@ export const authOptions: AuthOptions = {
         token: { label: "Token", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.token) return null;
+        if (!credentials?.token) {
+          console.error('[Auth][token] No token provided');
+          return null;
+        }
 
         try {
+          console.log('[Auth][token] Attempting login with token:', credentials.token);
           // Use Convex to fetch the table by name
           const table = await serverConvex.query(api.tables.getTableByToken, {
             token: credentials.token,
           });
 
-          if (!table) return null;
+          if (!table) {
+            console.error('[Auth][token] Table not found for token:', credentials.token);
+            return null;
+          }
 
           const normalizedName = (table.name || '').trim().toLowerCase();
           const isPrivileged = ['admin', 'tester', 'bar'].includes(normalizedName);
-          console.log('[Auth][token] login attempt', { tableName: table.name, normalizedName, isPrivileged });
+          console.log('[Auth][token] login successful', { tableName: table.name, normalizedName, isPrivileged });
           if (!isPrivileged) {
             const marketState = await serverConvex.query(api.pricingTick.getMarketState, {} as any);
             if (!marketState || marketState.active === false) {
@@ -90,7 +97,7 @@ export const authOptions: AuthOptions = {
             image: null,
           };
         } catch (e) {
-          console.error("Auth error:", e);
+          console.error("[Auth][token] error:", e);
           return null;
         }
       },

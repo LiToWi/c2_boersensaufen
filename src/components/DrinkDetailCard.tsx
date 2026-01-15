@@ -48,6 +48,7 @@ export default function DrinkDetailCard({
   const orderDrink = useMutation(api.drinks.orderDrink);
   const [isOrdering, setIsOrdering] = React.useState(false);
   const [quantity, setQuantity] = React.useState(1)
+  const [timeFrame, setTimeFrame] = React.useState<number | null>(30); // 30 minutes default
   const drinkId = (typeof id === 'string' ? (id as Id<'drinks'>) : id);
 
   React.useEffect(() => {
@@ -72,7 +73,7 @@ export default function DrinkDetailCard({
 
   const snapshots = useQuery(
     api.snapshots.getSnapshotsForProduct,
-    drinkId ? { id: drinkId } : 'skip'
+    drinkId ? { id: drinkId, timeFrameMinutes: timeFrame || undefined } : 'skip'
   );
 
   // Use database values if available, otherwise fall back to props
@@ -242,6 +243,29 @@ export default function DrinkDetailCard({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Time Frame Selector */}
+          <div className="mt-3 flex gap-2 flex-wrap">
+            {[
+              { value: 10, label: '10min' },
+              { value: 30, label: '30min' },
+              { value: 60, label: '1h' },
+              { value: 120, label: '2h' },
+              { value: null, label: t('all') || 'All' },
+            ].map((option) => (
+              <button
+                key={option.value?.toString() || 'all'}
+                onClick={() => setTimeFrame(option.value)}
+                className={`px-3 py-1 text-xs font-medium rounded transition ${
+                  timeFrame === option.value
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
 
           <div className="mt-4 h-64">

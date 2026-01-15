@@ -18,10 +18,12 @@ import type * as barOrders from "../barOrders.js";
 import type * as categories from "../categories.js";
 import type * as crons from "../crons.js";
 import type * as drinks from "../drinks.js";
+import type * as events from "../events.js";
 import type * as internal_syncMutations from "../internal/syncMutations.js";
 import type * as notifications from "../notifications.js";
 import type * as parties from "../parties.js";
 import type * as partyMembers from "../partyMembers.js";
+import type * as partyPasswords from "../partyPasswords.js";
 import type * as pricing_engine from "../pricing/engine.js";
 import type * as pricing_types from "../pricing/types.js";
 import type * as pricingTick from "../pricingTick.js";
@@ -33,6 +35,7 @@ import type * as settings from "../settings.js";
 import type * as snapshots from "../snapshots.js";
 import type * as tables from "../tables.js";
 import type * as testMode from "../testMode.js";
+import type * as translation from "../translation.js";
 
 import type {
   ApiFromModules,
@@ -59,10 +62,12 @@ declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   crons: typeof crons;
   drinks: typeof drinks;
+  events: typeof events;
   "internal/syncMutations": typeof internal_syncMutations;
   notifications: typeof notifications;
   parties: typeof parties;
   partyMembers: typeof partyMembers;
+  partyPasswords: typeof partyPasswords;
   "pricing/engine": typeof pricing_engine;
   "pricing/types": typeof pricing_types;
   pricingTick: typeof pricingTick;
@@ -74,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   snapshots: typeof snapshots;
   tables: typeof tables;
   testMode: typeof testMode;
+  translation: typeof translation;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

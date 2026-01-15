@@ -1,9 +1,16 @@
-FROM node:20-slim
+FROM node:20-slim AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci && npm cache clean --force
 COPY . .
-# Skip build in docker - we run dev server instead
-# RUN npm run build
+RUN npm run build
+
+FROM node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node_modules/.bin/next", "start", "-p", "3000"]

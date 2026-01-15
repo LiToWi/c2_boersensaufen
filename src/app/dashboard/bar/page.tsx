@@ -73,6 +73,7 @@ export default function BarDashboard() {
     | { type: 'item'; item: OrderItem }
     | { type: 'group'; partyId: Id<'parties'>; items: OrderItem[] };
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   
   const updateStatus = useMutation(api.barOrders.updateOrderStatus);
   const autoArchive = useMutation(api.barOrders.autoArchiveOldOrders);
@@ -259,14 +260,61 @@ export default function BarDashboard() {
           ? getUrgencyColor(order)
           : getStatusColor(order.barStatus));
 
+    const isSelected = selectedOrderId === order._id;
+
+    const getNextStatus = (): OrderStatus | null => {
+      switch (order.barStatus) {
+        case 'pending': return 'in_progress';
+        case 'in_progress': return 'completed';
+        case 'completed': return 'archived';
+        case 'archived': return null;
+        default: return null;
+      }
+    };
+
+    const getPrevStatus = (): OrderStatus | null => {
+      switch (order.barStatus) {
+        case 'pending': return null;
+        case 'in_progress': return 'pending';
+        case 'completed': return 'in_progress';
+        case 'archived': return 'completed';
+        default: return null;
+      }
+    };
+
+    const handleQuickMove = async (newStatus: OrderStatus) => {
+      try {
+        await updateStatus({ orderItemId: order._id, status: newStatus });
+        setSelectedOrderId(null);
+      } catch (error) {
+        console.error('Failed to update status:', error);
+      }
+    };
+
+    const getStatusLabel = (status: OrderStatus): string => {
+      switch (status) {
+        case 'pending': return 'Pending';
+        case 'in_progress': return 'Start';
+        case 'completed': return 'Done';
+        case 'archived': return 'Archive';
+        default: return 'Next';
+      }
+    };
+
+    const prevStatus = getPrevStatus();
+    const nextStatus = getNextStatus();
+
     return (
       <div
         key={order._id}
         draggable
         onDragStart={(e) => handleDragStartItem(e, order)}
-        className={`p-3 rounded-lg border-2 cursor-move hover:shadow-xl transition-all shadow-md ${
+        onClick={() => setSelectedOrderId(isSelected ? null : order._id)}
+        className={`p-3 rounded-lg border-2 transition-all shadow-md user-select-none ${
           urgencyColor
-        } ${dragPayload?.type === 'item' && dragPayload.item._id === order._id ? 'opacity-50' : 'opacity-100'}`}
+        } ${dragPayload?.type === 'item' && dragPayload.item._id === order._id ? 'opacity-50' : 'opacity-100'} ${
+          isSelected ? 'ring-2 ring-blue-500 cursor-pointer' : 'cursor-move hover:shadow-xl'
+        }`}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1">
@@ -278,6 +326,47 @@ export default function BarDashboard() {
             <span className="font-mono">{formatTime(orderAge)}</span>
           </div>
         </div>
+        {isSelected && (
+          <div className="mt-2 pt-2 border-t border-gray-600 flex gap-2">
+            {prevStatus && (
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleQuickMove(prevStatus);
+                }}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold"
+                title={`Back to ${getStatusLabel(prevStatus)}`}
+              >
+                ← Back
+              </Button>
+            )}
+            {nextStatus && (
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleQuickMove(nextStatus);
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold"
+                title={`Move to ${getStatusLabel(nextStatus)}`}
+              >
+                Next →
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedOrderId(null);
+              }}
+              variant="outline"
+              className="flex-1 text-xs"
+            >
+              ✕
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
@@ -311,7 +400,7 @@ export default function BarDashboard() {
         key={`${String(group.partyId)}-${oldest}`}
         draggable
         onDragStart={(e) => handleDragStartGroup(e, group.items)}
-        className={`rounded-xl border-2 ${bannerColor} bg-opacity-30 cursor-grab active:cursor-grabbing ${isDraggingThisGroup ? 'opacity-60' : ''}`}
+        className={`rounded-xl border-2 user-select-none ${bannerColor} bg-opacity-30 cursor-grab active:cursor-grabbing ${isDraggingThisGroup ? 'opacity-60' : ''}`}
       >
         <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -334,18 +423,18 @@ export default function BarDashboard() {
     <div
       onDragOver={handleDragOver}
       onDrop={(e) => handleDrop(e, status)}
-      className={`flex-1 min-h-[500px] p-4 rounded-lg border-2 border-dashed ${
+      className={`flex-1 flex flex-col p-4 rounded-lg border-2 border-dashed overflow-hidden ${
         dragPayload ? 'border-blue-500 bg-blue-500/5' : 'border-gray-700 bg-gray-900/40'
       }`}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           {getZoneIcon(status)}
           <h3 className="text-xl font-bold">{getZoneTitle(status)}</h3>
           <Badge variant="secondary">{orders.length}</Badge>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-2">
         {groupOrders(orders, status).map((g) => renderPartyGroup(g))}
         {orders.length === 0 && (
           <div className="text-center text-gray-500 py-8">
@@ -363,14 +452,14 @@ export default function BarDashboard() {
           <Package className="h-8 w-8 text-blue-600" />
           <h2 className="text-4xl font-bold">{t('bar_dashboard') || 'Bar Dashboard'}</h2>
         </div>
-        <Button
-          onClick={() => setShowArchive(!showArchive)}
-          variant="outline"
-          className="gap-2"
-        >
-          {showArchive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          {showArchive ? (t('hide_archive') || 'Hide Archive') : (t('show_archive') || 'Show Archive')}
-        </Button>
+         <Button
+           onClick={() => setShowArchive(!showArchive)}
+           variant="outline"
+           className="gap-2"
+         >
+           {showArchive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+           {showArchive ? (t('hide_archive') || 'Hide Archive') : (t('show_archive') || 'Show Archive')}
+         </Button>
       </div>
 
       {/* Stats Cards */}

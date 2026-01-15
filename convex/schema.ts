@@ -69,7 +69,8 @@ export default defineSchema({
     reason: v.optional(v.string()),
     meta: v.optional(v.any()),
   })
-    .index('by_drink_and_time', ['drinkId', 'ts']),
+    .index('by_drink_and_time', ['drinkId', 'ts'])
+    .index('by_timestamp', ['ts']), // For efficient cleanup of old snapshots
 
   drinks: defineTable({
     // external id from Ready2Order, keep as string for flexibility
@@ -100,6 +101,14 @@ export default defineSchema({
     // optional priority for ordering categories (higher = first)
     priority: v.optional(v.number()),
   }),
+
+  // Party creation passwords - 8-digit codes that must be provided to create a party
+  partyPasswords: defineTable({
+    code: v.string(), // 8-digit password (e.g., "12345678")
+    used: v.boolean(), // whether this password has been used
+    usedAt: v.optional(v.number()), // timestamp when used
+    usedByPartyId: v.optional(v.id('parties')), // which party used this password
+  }).index('by_code', ['code']).index('by_used', ['used']),
 
   // Market state for pricing engine
   marketState: defineTable({
@@ -198,4 +207,90 @@ export default defineSchema({
     value: v.any(),
     updatedAt: v.number(),
   }).index('by_key', ['key']),
+
+  // Market events - triggered sequentially from queue with price effects
+  events: defineTable({
+    // Event title (short label)
+    title: v.string(),
+    
+    // Bilingual display text
+    textDe: v.string(), // German text for user dashboard
+    textEn: v.string(), // English text for beamer display
+    
+    // Price effect type - determines how to apply priceEffects
+    effectType: v.union(
+      v.literal('global'), // All drinks affected
+      v.literal('category'), // Only specific categories
+      v.literal('excluded_drinks'), // All drinks except specified ones
+      v.literal('specific_drinks'), // Only specified drinks
+      v.literal('market_parameters') // Modify pricing engine parameters
+    ),
+    
+    // Effect configuration (structure depends on effectType)
+    effects: v.union(
+      // For 'global': single multiplier/override/fixedAddition
+      v.object({
+        type: v.literal('global'),
+        multiplier: v.optional(v.number()), // e.g., 1.2 = +20%
+        override: v.optional(v.number()), // e.g., 2.5 = fix price at €2.50
+        fixedAddition: v.optional(v.number()), // e.g., 0.1 = +€0.10 to each price
+      }),
+      // For 'category': affect specific categories
+      v.object({
+        type: v.literal('category'),
+        categoryIds: v.array(v.id('categories')), // category IDs
+        multiplier: v.optional(v.number()),
+        override: v.optional(v.number()),
+        fixedAddition: v.optional(v.number()),
+      }),
+      // For 'excluded_drinks': all except these
+      v.object({
+        type: v.literal('excluded_drinks'),
+        excludedDrinkIds: v.array(v.id('drinks')),
+        multiplier: v.optional(v.number()),
+        override: v.optional(v.number()),
+        fixedAddition: v.optional(v.number()),
+      }),
+      // For 'specific_drinks': only these
+      v.object({
+        type: v.literal('specific_drinks'),
+        drinkIds: v.array(v.id('drinks')),
+        multiplier: v.optional(v.number()),
+        override: v.optional(v.number()),
+        fixedAddition: v.optional(v.number()),
+      }),
+      // For 'market_parameters': modify pricing engine parameters temporarily
+      v.object({
+        type: v.literal('market_parameters'),
+        parameters: v.object({
+          beta: v.optional(v.number()),
+          lambda: v.optional(v.number()),
+          k: v.optional(v.number()),
+          N0: v.optional(v.number()),
+          lowerBoundMultiplier: v.optional(v.number()),
+          upperBoundMultiplier: v.optional(v.number()),
+          maxJumpPercent: v.optional(v.number()),
+          volatilityReductionFactor: v.optional(v.number()),
+        }),
+      })
+    ),
+    
+    // Repeatability
+    repeatable: v.boolean(), // whether this event can be added back to queue after playing
+    
+    // Admin metadata
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+    
+    // Occurrence tracking - resets on system reset
+    has_occurred: v.boolean(), // whether this event has been played in current session
+    occurred_at: v.optional(v.number()), // when it was last activated
+  }),
+
+  // Event queue - ordered list of events to be played
+  event_queue: defineTable({
+    eventId: v.id('events'), // reference to event
+    position: v.number(), // order in queue (lower = plays first)
+    createdAt: v.number(), // when added to queue
+  }).index('by_position', ['position']),
 })

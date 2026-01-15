@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 import { DEFAULT_PRICING_CONFIG, type PricingConfig } from './pricing/types'
 
 async function getByKey(ctx: any, key: string) {
-  return await ctx.db.query('settings').withIndex('by_key', q => q.eq('key', key)).first()
+  return await ctx.db.query('settings').withIndex('by_key', (q: any) => q.eq('key', key)).first()
 }
 
 export const getSettings = query({
@@ -34,7 +34,7 @@ export const setTradingFeeRate = mutation({
 
 export const setPricingConfig = mutation({
   args: { partial: v.object({
-    tickIntervalSeconds: v.optional(v.number()),
+
     beta: v.optional(v.number()),
     lambda: v.optional(v.number()),
     k: v.optional(v.number()),

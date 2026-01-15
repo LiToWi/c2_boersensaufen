@@ -154,15 +154,26 @@ export const getAllPartiesByTableName = query({
 });
 
 export const createParty = mutation({
-    args: { name: v.string(), tableId: v.id("tables"), password: v.optional(v.string()), creatorId: v.string() },
+    args: { name: v.string(), tableId: v.id("tables"), partyCreationPassword: v.string(), creatorId: v.string() },
     handler: async (ctx, args) => {
+        // Validate party creation password
+        const passwords = await ctx.db
+            .query("partyPasswords")
+            .filter((q) => q.eq(q.field("code"), args.partyCreationPassword))
+            .collect();
+
+        if (passwords.length === 0) {
+            throw new Error("Invalid party creation password");
+        }
+
+        const passwordRecord = passwords[0];
+
+        if (passwordRecord.used) {
+            throw new Error("This party creation password has already been used");
+        }
+
         // Allow multiple active parties for the same table
         // Membership constraint: users can only join one party at a time (enforced in handleJoinParty)
-
-        let passwordHash: string | undefined = undefined;
-        if (args.password && args.password.trim() !== '') {
-            passwordHash = await sha256Hex(args.password);
-        }
 
         const party = {
             name: args.name,
@@ -170,15 +181,21 @@ export const createParty = mutation({
             creatorId: args.creatorId,
             closed: false,
             createdAt: Date.now(),
-            passwordHash,
         };
         const id = await ctx.db.insert("parties", party);
+
+        // Mark the password as used
+        await ctx.db.patch(passwordRecord._id, {
+            used: true,
+            usedAt: Date.now(),
+            usedByPartyId: id,
+        });
         
         // R2O table creation is now handled by frontend via API route
         // (see src/app/api/ready2order/create-table/route.ts)
         // This ensures environment variables are accessible
         
-        return { ...party, _id: id, hasPassword: !!passwordHash };
+        return { ...party, _id: id, hasPassword: false };
     },
 });
 

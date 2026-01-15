@@ -3,28 +3,21 @@ services:
     build:
       context: .
     ports:
-      - "2007:3000" # Next dev default
+      - "2007:3000" # Next production port
     env_file:
       - .env.local
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       # Point the app container to the PHP microservice by docker-compose service name
       - READY2ORDER_PHP_URL=http://php-ready2order:8090/products
       # External Convex URL for client-side access via proxy (uses existing convex.campus-cneipe.de subdomain)
       - NEXT_PUBLIC_CONVEX_URL=https://convex.campus-cneipe.de
       # Internal backend URL for server-side calls
       - CONVEX_SELF_HOSTED_URL=http://backend:3210
-    volumes:
-      - ./:/app:cached
-      - /app/node_modules
-    working_dir: /app
-    # Dev-only: run Next dev server. Convex is expected to run externally.
-    command: bash -lc "npm install --no-audit --no-fund --silent && npm run dev"
-    tty: true
-    stdin_open: true
     networks:
       - default
       - nginx-proxy-manager
+    restart: unless-stopped
   php-ready2order:
     image: composer:2
     working_dir: /srv

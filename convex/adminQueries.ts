@@ -46,6 +46,23 @@ export const getSystemStats = query({
     const drinks = await ctx.db.query('drinks').collect();
     const activeDrinks = drinks.filter(d => d.active);
 
+    // Market capitalization (current value vs regular value)
+    const currentMarketCap = drinks.reduce((sum, drink) => {
+      if (!drink.active) return sum;
+      return sum + (drink.currentPrice * (drink.capacity || 20));
+    }, 0);
+
+    const regularMarketCap = drinks.reduce((sum, drink) => {
+      if (!drink.active) return sum;
+      const regularPrice = drink.regularPrice || drink.currentPrice;
+      return sum + (regularPrice * (drink.capacity || 20));
+    }, 0);
+
+    const marketCapDiff = currentMarketCap - regularMarketCap;
+    const marketCapPercent = regularMarketCap > 0
+      ? (marketCapDiff / regularMarketCap) * 100
+      : 0;
+
     // R2O stats
     const r2oOrders = await ctx.db.query('r2oOrders').collect();
     const r2oProducts = await ctx.db.query('r2oProducts').collect();
@@ -86,6 +103,12 @@ export const getSystemStats = query({
         total: drinks.length,
         active: activeDrinks.length,
         inactive: drinks.length - activeDrinks.length,
+      },
+      marketCap: {
+        current: Number(currentMarketCap.toFixed(2)),
+        regular: Number(regularMarketCap.toFixed(2)),
+        difference: Number(marketCapDiff.toFixed(2)),
+        percent: Number(marketCapPercent.toFixed(2)),
       },
       r2o: {
         totalOrders: r2oOrders.length,

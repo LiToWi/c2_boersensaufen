@@ -126,6 +126,7 @@ export default function Navbar() {
               <Link href="/" className="hover:text-blue-600 transition">{t('nav_home')}</Link>
             )}
             <Link href="/drinks" className="hover:text-blue-600 transition">{t('nav_drinks')}</Link>
+            <Link href="/overview" className="hover:text-blue-600 transition">{t('nav_overview') || 'Overview'}</Link>
             {session && (
               <Link href={
                 isAdmin ? '/dashboard/admin' : 
@@ -134,7 +135,10 @@ export default function Navbar() {
               } className="hover:text-blue-600 transition">{t('nav_dashboard')}</Link>
             )}
             {isBar && (
-              <Link href="/beamer" className="hover:text-blue-600 transition">Beamer</Link>
+              <Link href="/overview" className="hover:text-blue-600 transition">Beamer</Link>
+            )}
+            {(isBar || isAdmin) && (
+              <Link href="/dashboard/bar/password-distribution" className="hover:text-blue-600 transition">{t('nav_codes') || 'Codes'}</Link>
             )}
             {session && !isPrivilegedUser && (
                 <Link href={`/tables/${session.user?.name}`} className="hover:text-blue-600 transition">{t('nav_my_party')}</Link>
@@ -214,6 +218,13 @@ export default function Navbar() {
           >
             {t('nav_drinks')}
           </Link>
+          <Link 
+            href="/overview" 
+            className="block hover:text-blue-600 transition text-lg"
+            onClick={closeMobileMenu}
+          >
+            {t('nav_overview') || 'Overview'}
+          </Link>
           {session && (
             <Link 
               href={
@@ -229,13 +240,22 @@ export default function Navbar() {
           )}
           {isBar && (
             <Link 
-              href="/beamer" 
+              href="/overview" 
               className="block hover:text-blue-600 transition text-lg"
               onClick={closeMobileMenu}
             >
               Beamer
             </Link>
-          )}
+           )}
+           {(isBar || isAdmin) && (
+             <Link 
+               href="/dashboard/bar/password-distribution" 
+               className="block hover:text-blue-600 transition text-lg"
+               onClick={closeMobileMenu}
+             >
+               {t('nav_codes') || 'Codes'}
+             </Link>
+            )}
           {session && !isPrivilegedUser && (
             <Link 
               href={`/tables/${session.user?.name}`} 

@@ -235,3 +235,50 @@ export const initializeMarketState = internalMutation({
     }
   },
 });
+
+/**
+ * Delete party passwords - deletes ALL codes
+ */
+export const clearPartyPasswords = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let items = await ctx.db.query('partyPasswords').take(100);
+    while (items.length > 0) {
+      for (const item of items) {
+        await ctx.db.delete(item._id);
+      }
+      items = await ctx.db.query('partyPasswords').take(100);
+    }
+  },
+});
+
+/**
+ * Reinitialize party passwords - generates 100 new random codes
+ */
+export const reinitializePartyPasswords = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Generate 100 unique 8-digit passwords
+    const passwords = [];
+    const usedCodes = new Set<string>();
+
+    while (passwords.length < 100) {
+      const code = Math.floor(Math.random() * 100000000)
+        .toString()
+        .padStart(8, "0");
+      
+      if (!usedCodes.has(code)) {
+        usedCodes.add(code);
+        passwords.push({
+          code,
+          used: false,
+        });
+      }
+    }
+
+    // Insert all passwords
+    for (const password of passwords) {
+      await ctx.db.insert("partyPasswords", password);
+    }
+  },
+});
