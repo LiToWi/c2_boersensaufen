@@ -194,18 +194,15 @@ export const triggerNextEvent = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Check if market is active - event queue only processes when market has started
+    // Check if market is active
     const marketState = await ctx.db
       .query('marketState')
       .filter((q) => q.eq(q.field('stateKey'), 'global'))
       .first();
 
     if (!marketState || marketState.active === false) {
-      console.log('[Events] Skipping event trigger - market not active');
-      return { skipped: true, reason: 'Market not active', timestamp: now };
+      return { skipped: true, reason: 'Market not active' };
     }
-
-    console.log('[Events] Market active - processing next event in queue');
 
     // First, restore previous event's market parameters if any
     const previousEvent = await ctx.db

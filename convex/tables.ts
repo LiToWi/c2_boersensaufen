@@ -81,12 +81,7 @@ export const getTableByID = query({
     return task
   }
 })
-export const getAllTables = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query('tables').collect();
-  }
-});
+
 // Keep this as a mutation since it modifies/validates data
 export const validateTablePassword = mutation({
     args: {
